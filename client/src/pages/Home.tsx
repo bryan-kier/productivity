@@ -24,6 +24,7 @@ const initialTasks: Task[] = [
     completed: false,
     refreshType: "none",
     categoryId: "work",
+    categoryName: "Work",
     subtasks: [
       { id: "1-1", title: "Draft outline", completed: true },
       { id: "1-2", title: "Add budget estimates", completed: false },
@@ -35,6 +36,7 @@ const initialTasks: Task[] = [
     completed: false,
     refreshType: "daily",
     categoryId: "work",
+    categoryName: "Work",
     subtasks: [],
   },
   {
@@ -43,6 +45,7 @@ const initialTasks: Task[] = [
     completed: false,
     refreshType: "weekly",
     categoryId: "personal",
+    categoryName: "Personal",
     subtasks: [],
   },
   {
@@ -51,10 +54,8 @@ const initialTasks: Task[] = [
     completed: false,
     refreshType: "none",
     categoryId: "shopping",
-    subtasks: [
-      { id: "4-1", title: "Fruits and vegetables", completed: false },
-      { id: "4-2", title: "Dairy products", completed: false },
-    ],
+    categoryName: "Shopping",
+    subtasks: [],
   },
   {
     id: "5",
@@ -62,6 +63,7 @@ const initialTasks: Task[] = [
     completed: true,
     refreshType: "daily",
     categoryId: "personal",
+    categoryName: "Personal",
     subtasks: [],
   },
 ];
@@ -125,9 +127,11 @@ export default function Home() {
   };
 
   const handleCreateTask = (newTask: { title: string; refreshType: "daily" | "weekly" | "none"; categoryId?: string }) => {
+    const category = categories.find(c => c.id === newTask.categoryId);
     const task: Task = {
       id: Date.now().toString(),
       ...newTask,
+      categoryName: category?.name,
       completed: false,
       subtasks: [],
     };

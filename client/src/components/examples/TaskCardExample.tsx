@@ -6,6 +6,8 @@ const mockTask: Task = {
   title: "Review project documentation",
   completed: false,
   refreshType: "daily",
+  categoryId: "work",
+  categoryName: "Work",
   subtasks: [
     { id: "1-1", title: "Read API specs", completed: true },
     { id: "1-2", title: "Update changelog", completed: false },

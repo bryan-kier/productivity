@@ -19,6 +19,7 @@ export interface Task {
   completed: boolean;
   refreshType: RefreshType;
   categoryId?: string;
+  categoryName?: string;
   subtasks: Subtask[];
 }
 
@@ -52,6 +53,15 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
             >
               {task.title}
             </span>
+            {task.categoryName && (
+              <Badge 
+                variant="secondary" 
+                className="text-xs"
+                data-testid={`badge-category-${task.id}`}
+              >
+                {task.categoryName}
+              </Badge>
+            )}
             {task.refreshType !== "none" && (
               <Badge 
                 variant="outline" 
