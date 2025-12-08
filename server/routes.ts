@@ -221,12 +221,35 @@ export async function registerRoutes(
   });
 
   // === Health Check Endpoint ===
-  app.get("/health", (_req, res) => {
-    res.json({ 
-      status: "ok", 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+  app.get("/health", async (_req, res) => {
+    try {
+      // Test database connection
+      const { testConnection } = await import("./db");
+      const dbConnected = await testConnection();
+      
+      const health = {
+        status: dbConnected ? "ok" : "degraded",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: {
+          connected: dbConnected,
+          status: dbConnected ? "healthy" : "disconnected"
+        }
+      };
+      
+      res.status(dbConnected ? 200 : 503).json(health);
+    } catch (error) {
+      res.status(503).json({
+        status: "error",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: {
+          connected: false,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    }
   });
 
   return httpServer;

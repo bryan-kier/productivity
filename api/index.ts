@@ -1,9 +1,11 @@
+import "dotenv/config";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import express from "express";
 import { registerRoutes } from "./routes.js";
 
 // Initialize Express app (singleton pattern for Vercel)
 let app: express.Express | null = null;
+let dbInitialized = false;
 
 async function getApp(): Promise<express.Express> {
   if (app) return app;
@@ -38,6 +40,19 @@ async function getApp(): Promise<express.Express> {
     }),
   );
   app.use(express.urlencoded({ extended: false }));
+
+  // Test database connection on first initialization (for serverless)
+  if (!dbInitialized) {
+    try {
+      const { initializeDatabase } = await import("../server/db");
+      await initializeDatabase();
+      dbInitialized = true;
+    } catch (error) {
+      console.error("Database initialization failed:", error);
+      // Don't throw here - let the health endpoint report the issue
+      // Some serverless functions may not need DB access immediately
+    }
+  }
 
   // Register all routes (API routes only - static files handled by Vercel)
   await registerRoutes(null, app);

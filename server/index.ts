@@ -1,8 +1,10 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { initializeScheduler } from "./scheduler";
+import { initializeDatabase } from "./db";
 
 // Validate required environment variables
 if (!process.env.DATABASE_URL) {
@@ -69,6 +71,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Test database connection before starting the server
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    process.exit(1);
+  }
+  
   await registerRoutes(httpServer, app);
   
   initializeScheduler();
