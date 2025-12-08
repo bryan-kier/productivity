@@ -10,6 +10,25 @@ async function getApp(): Promise<express.Express> {
 
   app = express();
 
+  // CORS middleware
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    // Allow requests from same origin (Vercel deployment)
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    } else {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Middleware
   app.use(
     express.json({

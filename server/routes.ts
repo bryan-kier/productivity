@@ -64,7 +64,11 @@ export async function registerRoutes(
       const tasks = await storage.getTasks();
       res.json(tasks);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch tasks" });
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch tasks",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -154,7 +158,11 @@ export async function registerRoutes(
       const notes = await storage.getNotes();
       res.json(notes);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch notes" });
+      console.error("Error fetching notes:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch notes",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
