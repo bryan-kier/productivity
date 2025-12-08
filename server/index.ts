@@ -4,6 +4,14 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { initializeScheduler } from "./scheduler";
 
+// Validate required environment variables
+if (!process.env.DATABASE_URL) {
+  console.error("❌ ERROR: DATABASE_URL environment variable is required");
+  console.error("   Please set DATABASE_URL to your PostgreSQL connection string");
+  console.error("   Example: postgresql://user:password@localhost:5432/taskflow");
+  process.exit(1);
+}
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -98,4 +106,30 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  // Graceful shutdown
+  const gracefulShutdown = async (signal: string) => {
+    log(`Received ${signal}, shutting down gracefully...`);
+    httpServer.close(() => {
+      log("HTTP server closed");
+      // Close database connections
+      import("./db").then(({ pool }) => {
+        pool.end(() => {
+          log("Database connections closed");
+          process.exit(0);
+        });
+      }).catch(() => {
+        process.exit(0);
+      });
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      log("Forcing shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 })();

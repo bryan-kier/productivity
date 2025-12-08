@@ -5,9 +5,9 @@ import { insertCategorySchema, insertTaskSchema, insertSubtaskSchema, insertNote
 import { z } from "zod";
 
 export async function registerRoutes(
-  httpServer: Server,
+  httpServer: Server | null,
   app: Express
-): Promise<Server> {
+): Promise<Server | null> {
   
   // === Categories ===
   app.get("/api/categories", async (_req, res) => {
@@ -210,6 +210,15 @@ export async function registerRoutes(
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh weekly tasks" });
     }
+  });
+
+  // === Health Check Endpoint ===
+  app.get("/health", (_req, res) => {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
   });
 
   return httpServer;

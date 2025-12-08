@@ -5,10 +5,13 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "build": "tsx script/build.ts",
+    "build": "npm run build:client",
+    "build:client": "vite build",
+    "build:server": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "vercel-build": "npm run build:client"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -75,7 +78,8 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "@vercel/node": "^3.0.21"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
