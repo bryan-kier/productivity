@@ -44,6 +44,7 @@ export const tasks = pgTable("tasks", {
   refreshType: text("refresh_type").notNull().default("none"), // "none" | "daily" | "weekly"
   categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
   lastRefreshed: timestamp("last_refreshed"),
+  deadline: timestamp("deadline"),
 });
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -58,6 +59,7 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   title: true,
   refreshType: true,
   categoryId: true,
+  deadline: true,
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -69,6 +71,7 @@ export const subtasks = pgTable("subtasks", {
   title: text("title").notNull(),
   completed: boolean("completed").notNull().default(false),
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  deadline: timestamp("deadline"),
 });
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
@@ -81,6 +84,7 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
 export const insertSubtaskSchema = createInsertSchema(subtasks).pick({
   title: true,
   taskId: true,
+  deadline: true,
 });
 
 export type InsertSubtask = z.infer<typeof insertSubtaskSchema>;

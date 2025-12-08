@@ -10,13 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -24,42 +17,34 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { RefreshType } from "./TaskCard";
-import { Category } from "./CategorySidebar";
 import { cn } from "@/lib/utils";
 
-interface CreateTaskDialogProps {
+interface CreateSubtaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  categories: Category[];
-  onCreateTask: (task: { title: string; refreshType: RefreshType; categoryId?: string; deadline?: Date }) => void;
+  taskId: string;
+  onCreateSubtask: (taskId: string, subtask: { title: string; deadline?: Date }) => void;
 }
 
-export default function CreateTaskDialog({ 
+export default function CreateSubtaskDialog({ 
   open, 
   onOpenChange, 
-  categories, 
-  onCreateTask 
-}: CreateTaskDialogProps) {
+  taskId,
+  onCreateSubtask 
+}: CreateSubtaskDialogProps) {
   const [title, setTitle] = useState("");
-  const [refreshType, setRefreshType] = useState<RefreshType>("none");
-  const [categoryId, setCategoryId] = useState<string>("");
   const [deadline, setDeadline] = useState<Date | undefined>(undefined);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     
-    onCreateTask({
+    onCreateSubtask(taskId, {
       title: title.trim(),
-      refreshType,
-      categoryId: categoryId || undefined,
       deadline: deadline,
     });
     
     setTitle("");
-    setRefreshType("none");
-    setCategoryId("");
     setDeadline(undefined);
     onOpenChange(false);
   };
@@ -68,51 +53,20 @@ export default function CreateTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>Add Subtask</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Task Title</Label>
+              <Label htmlFor="subtask-title">Subtask Title</Label>
               <Input
-                id="title"
+                id="subtask-title"
                 placeholder="What needs to be done?"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
-                data-testid="input-task-title"
+                data-testid="input-subtask-title"
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="refresh">Refresh Cycle</Label>
-              <Select value={refreshType} onValueChange={(value) => setRefreshType(value as RefreshType)}>
-                <SelectTrigger data-testid="select-refresh-type">
-                  <SelectValue placeholder="Select refresh cycle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Refresh</SelectItem>
-                  <SelectItem value="daily">Daily (7am)</SelectItem>
-                  <SelectItem value="weekly">Weekly (Sunday)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="category">Category (Optional)</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger data-testid="select-category">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Category</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="space-y-2">
@@ -147,8 +101,8 @@ export default function CreateTaskDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim()} data-testid="button-submit-task">
-              Create Task
+            <Button type="submit" disabled={!title.trim()} data-testid="button-submit-subtask">
+              Add Subtask
             </Button>
           </DialogFooter>
         </form>

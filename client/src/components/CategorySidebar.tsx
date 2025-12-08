@@ -21,7 +21,16 @@ import {
   FolderOpen, 
   Plus,
   Settings,
+  MoreVertical,
+  Edit,
+  Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface Category {
   id: string;
@@ -35,6 +44,8 @@ interface CategorySidebarProps {
   selectedCategoryId: string | null;
   onSelectCategory: (id: string | null) => void;
   onAddCategory?: () => void;
+  onEditCategory?: (category: Category) => void;
+  onDeleteCategory?: (id: string) => void;
 }
 
 const defaultViews = [
@@ -48,7 +59,9 @@ export default function CategorySidebar({
   categories, 
   selectedCategoryId, 
   onSelectCategory, 
-  onAddCategory 
+  onAddCategory,
+  onEditCategory,
+  onDeleteCategory,
 }: CategorySidebarProps) {
   return (
     <Sidebar>
@@ -102,15 +115,60 @@ export default function CategorySidebar({
               <SidebarMenu>
                 {categories.map((category) => (
                   <SidebarMenuItem key={category.id}>
-                    <SidebarMenuButton
-                      isActive={selectedCategoryId === category.id}
-                      onClick={() => onSelectCategory(category.id)}
-                      data-testid={`button-category-${category.id}`}
-                    >
-                      <FolderOpen className="w-4 h-4" />
-                      <span className="flex-1">{category.name}</span>
-                      <span className="text-xs text-muted-foreground">{category.taskCount}</span>
-                    </SidebarMenuButton>
+                    <div className="flex items-center w-full group">
+                      <SidebarMenuButton
+                        isActive={selectedCategoryId === category.id}
+                        onClick={() => onSelectCategory(category.id)}
+                        data-testid={`button-category-${category.id}`}
+                        className="flex-1"
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                        <span className="flex-1">{category.name}</span>
+                        <span className="text-xs text-muted-foreground">{category.taskCount}</span>
+                      </SidebarMenuButton>
+                      {(onEditCategory || onDeleteCategory) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`button-category-menu-${category.id}`}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {onEditCategory && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditCategory(category);
+                                }}
+                                data-testid={`button-edit-category-${category.id}`}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {onDeleteCategory && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteCategory(category.id);
+                                }}
+                                className="text-destructive"
+                                data-testid={`button-delete-category-${category.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

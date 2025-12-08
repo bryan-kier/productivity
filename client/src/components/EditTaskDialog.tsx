@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -24,51 +24,65 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { RefreshType } from "./TaskCard";
+import { RefreshType, Task } from "./TaskCard";
 import { Category } from "./CategorySidebar";
 import { cn } from "@/lib/utils";
 
-interface CreateTaskDialogProps {
+interface EditTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  task: Task | null;
   categories: Category[];
-  onCreateTask: (task: { title: string; refreshType: RefreshType; categoryId?: string; deadline?: Date }) => void;
+  onUpdateTask: (id: string, updates: { title?: string; refreshType?: RefreshType; categoryId?: string; deadline?: Date | null }) => void;
 }
 
-export default function CreateTaskDialog({ 
+export default function EditTaskDialog({ 
   open, 
   onOpenChange, 
+  task,
   categories, 
-  onCreateTask 
-}: CreateTaskDialogProps) {
+  onUpdateTask 
+}: EditTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [refreshType, setRefreshType] = useState<RefreshType>("none");
   const [categoryId, setCategoryId] = useState<string>("");
   const [deadline, setDeadline] = useState<Date | undefined>(undefined);
 
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title);
+      setRefreshType(task.refreshType);
+      setCategoryId(task.categoryId || "");
+      if (task.deadline) {
+        const deadlineDate = typeof task.deadline === 'string' ? new Date(task.deadline) : task.deadline;
+        setDeadline(deadlineDate);
+      } else {
+        setDeadline(undefined);
+      }
+    }
+  }, [task, open]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !task) return;
     
-    onCreateTask({
+    onUpdateTask(task.id, {
       title: title.trim(),
       refreshType,
       categoryId: categoryId || undefined,
-      deadline: deadline,
+      deadline: deadline || null,
     });
     
-    setTitle("");
-    setRefreshType("none");
-    setCategoryId("");
-    setDeadline(undefined);
     onOpenChange(false);
   };
+
+  if (!task) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
@@ -148,7 +162,7 @@ export default function CreateTaskDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={!title.trim()} data-testid="button-submit-task">
-              Create Task
+              Update Task
             </Button>
           </DialogFooter>
         </form>

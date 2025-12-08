@@ -25,7 +25,7 @@ export interface IStorage {
   getTasks(): Promise<(Task & { categoryName?: string; subtasks: Subtask[] })[]>;
   getTask(id: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed'>>): Promise<Task | undefined>;
+  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed' | 'deadline'>>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<void>;
   resetDailyTasks(): Promise<void>;
   resetWeeklyTasks(): Promise<void>;
@@ -33,7 +33,7 @@ export interface IStorage {
   // Subtasks
   getSubtasks(taskId: string): Promise<Subtask[]>;
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
-  updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed'>>): Promise<Subtask | undefined>;
+  updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined>;
   deleteSubtask(id: string): Promise<void>;
   
   // Notes
@@ -108,7 +108,7 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
-  async updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed'>>): Promise<Task | undefined> {
+  async updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed' | 'deadline'>>): Promise<Task | undefined> {
     const [task] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
     return task || undefined;
   }
@@ -152,7 +152,7 @@ export class DatabaseStorage implements IStorage {
     return subtask;
   }
 
-  async updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed'>>): Promise<Subtask | undefined> {
+  async updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined> {
     const [subtask] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
     return subtask || undefined;
   }
