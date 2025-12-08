@@ -1,166 +1,180 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CategorySidebar, { Category } from "@/components/CategorySidebar";
-import TaskCard, { Task } from "@/components/TaskCard";
+import TaskCard, { Task, RefreshType } from "@/components/TaskCard";
 import NoteCard, { Note } from "@/components/NoteCard";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import CreateTaskDialog from "@/components/CreateTaskDialog";
 import CreateNoteDialog from "@/components/CreateNoteDialog";
 import CreateCategoryDialog from "@/components/CreateCategoryDialog";
-import { Calendar, RefreshCw, FileText } from "lucide-react";
+import { Calendar, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-// todo: remove mock functionality - Initial mock data
-const initialCategories: Category[] = [
-  { id: "work", name: "Work", taskCount: 3 },
-  { id: "personal", name: "Personal", taskCount: 2 },
-  { id: "shopping", name: "Shopping", taskCount: 1 },
-];
+interface ApiCategory {
+  id: string;
+  name: string;
+}
 
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Complete project proposal",
-    completed: false,
-    refreshType: "none",
-    categoryId: "work",
-    categoryName: "Work",
-    subtasks: [
-      { id: "1-1", title: "Draft outline", completed: true },
-      { id: "1-2", title: "Add budget estimates", completed: false },
-    ],
-  },
-  {
-    id: "2",
-    title: "Morning standup",
-    completed: false,
-    refreshType: "daily",
-    categoryId: "work",
-    categoryName: "Work",
-    subtasks: [],
-  },
-  {
-    id: "3",
-    title: "Weekly review",
-    completed: false,
-    refreshType: "weekly",
-    categoryId: "personal",
-    categoryName: "Personal",
-    subtasks: [],
-  },
-  {
-    id: "4",
-    title: "Grocery shopping",
-    completed: false,
-    refreshType: "none",
-    categoryId: "shopping",
-    categoryName: "Shopping",
-    subtasks: [],
-  },
-  {
-    id: "5",
-    title: "Exercise routine",
-    completed: true,
-    refreshType: "daily",
-    categoryId: "personal",
-    categoryName: "Personal",
-    subtasks: [],
-  },
-];
+interface ApiTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  refreshType: string;
+  categoryId: string | null;
+  categoryName?: string;
+  lastRefreshed: string | null;
+  subtasks: Array<{
+    id: string;
+    title: string;
+    completed: boolean;
+    taskId: string;
+  }>;
+}
 
-const initialNotes: Note[] = [
-  {
-    id: "1",
-    title: "Project Ideas",
-    content: "List of potential features to add: dark mode improvements, export functionality, mobile app version...",
-    categoryId: "work",
-    categoryName: "Work",
-  },
-  {
-    id: "2",
-    title: "Meeting Notes",
-    content: "Discussed timeline for Q1 deliverables. Key action items assigned to team members.",
-    categoryId: "work",
-    categoryName: "Work",
-  },
-  {
-    id: "3",
-    title: "Book Recommendations",
-    content: "Need to read: Atomic Habits, Deep Work, The Psychology of Money",
-    categoryId: "personal",
-    categoryName: "Personal",
-  },
-];
+interface ApiNote {
+  id: string;
+  title: string;
+  content: string;
+  categoryId: string | null;
+  categoryName?: string;
+}
 
 export default function Home() {
   const [selectedView, setSelectedView] = useState<string | null>("inbox");
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
-  
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createNoteOpen, setCreateNoteOpen] = useState(false);
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
+  const { toast } = useToast();
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
+  const { data: apiCategories = [], isLoading: categoriesLoading } = useQuery<ApiCategory[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const { data: apiTasks = [], isLoading: tasksLoading } = useQuery<ApiTask[]>({
+    queryKey: ["/api/tasks"],
+  });
+
+  const { data: apiNotes = [], isLoading: notesLoading } = useQuery<ApiNote[]>({
+    queryKey: ["/api/notes"],
+  });
+
+  const categories: Category[] = apiCategories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    taskCount: apiTasks.filter(t => t.categoryId === cat.id).length,
+  }));
+
+  const tasks: Task[] = apiTasks.map(task => ({
+    id: task.id,
+    title: task.title,
+    completed: task.completed,
+    refreshType: task.refreshType as RefreshType,
+    categoryId: task.categoryId || undefined,
+    categoryName: task.categoryName,
+    subtasks: task.subtasks.map(st => ({
+      id: st.id,
+      title: st.title,
+      completed: st.completed,
+    })),
+  }));
+
+  const notes: Note[] = apiNotes.map(note => ({
+    id: note.id,
+    title: note.title,
+    content: note.content,
+    categoryId: note.categoryId || undefined,
+    categoryName: note.categoryName,
+  }));
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return apiRequest("POST", "/api/categories", { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      toast({ title: "Category created" });
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (task: { title: string; refreshType: RefreshType; categoryId?: string }) => {
+      return apiRequest("POST", "/api/tasks", {
+        title: task.title,
+        refreshType: task.refreshType,
+        categoryId: task.categoryId || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Task created" });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { completed?: boolean } }) => {
+      return apiRequest("PATCH", `/api/tasks/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+  });
+
+  const updateSubtaskMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { completed?: boolean } }) => {
+      return apiRequest("PATCH", `/api/subtasks/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: async (note: { title: string; content: string; categoryId?: string }) => {
+      return apiRequest("POST", "/api/notes", {
+        title: note.title,
+        content: note.content,
+        categoryId: note.categoryId || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      toast({ title: "Note created" });
+    },
+  });
+
   const handleToggleTask = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-  };
-
-  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? {
-            ...task,
-            subtasks: task.subtasks.map(st => 
-              st.id === subtaskId ? { ...st, completed: !st.completed } : st
-            )
-          }
-        : task
-    ));
-  };
-
-  const handleCreateTask = (newTask: { title: string; refreshType: "daily" | "weekly" | "none"; categoryId?: string }) => {
-    const category = categories.find(c => c.id === newTask.categoryId);
-    const task: Task = {
-      id: Date.now().toString(),
-      ...newTask,
-      categoryName: category?.name,
-      completed: false,
-      subtasks: [],
-    };
-    setTasks([task, ...tasks]);
-    
-    if (newTask.categoryId) {
-      setCategories(categories.map(cat => 
-        cat.id === newTask.categoryId ? { ...cat, taskCount: cat.taskCount + 1 } : cat
-      ));
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      updateTaskMutation.mutate({ id, updates: { completed: !task.completed } });
     }
   };
 
+  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    const subtask = task?.subtasks.find(st => st.id === subtaskId);
+    if (subtask) {
+      updateSubtaskMutation.mutate({ id: subtaskId, updates: { completed: !subtask.completed } });
+    }
+  };
+
+  const handleCreateTask = (newTask: { title: string; refreshType: RefreshType; categoryId?: string }) => {
+    createTaskMutation.mutate(newTask);
+  };
+
   const handleCreateNote = (newNote: { title: string; content: string; categoryId?: string }) => {
-    const category = categories.find(c => c.id === newNote.categoryId);
-    const note: Note = {
-      id: Date.now().toString(),
-      ...newNote,
-      categoryName: category?.name,
-    };
-    setNotes([note, ...notes]);
+    createNoteMutation.mutate(newNote);
   };
 
   const handleCreateCategory = (name: string) => {
-    const category: Category = {
-      id: Date.now().toString(),
-      name,
-      taskCount: 0,
-    };
-    setCategories([...categories, category]);
+    createCategoryMutation.mutate(name);
   };
 
   const getFilteredTasks = () => {
@@ -198,6 +212,7 @@ export default function Home() {
 
   const filteredTasks = getFilteredTasks();
   const filteredNotes = getFilteredNotes();
+  const isLoading = categoriesLoading || tasksLoading || notesLoading;
 
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
@@ -224,62 +239,68 @@ export default function Home() {
           </header>
           
           <div className="flex-1 overflow-hidden">
-            <div className="h-full flex flex-col lg:flex-row">
-              <div className="flex-1 min-w-0 lg:w-3/5">
-                <ScrollArea className="h-full">
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">{filteredTasks.length} tasks</span>
-                    </div>
-                    
-                    {filteredTasks.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">No tasks yet. Create one to get started!</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredTasks.map(task => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onToggle={handleToggleTask}
-                            onToggleSubtask={handleToggleSubtask}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
               </div>
-              
-              <div className="lg:w-2/5 border-t lg:border-t-0 lg:border-l border-border">
-                <ScrollArea className="h-full">
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                      <FileText className="w-4 h-4" />
-                      <span className="text-sm">{filteredNotes.length} notes</span>
+            ) : (
+              <div className="h-full flex flex-col lg:flex-row">
+                <div className="flex-1 min-w-0 lg:w-3/5">
+                  <ScrollArea className="h-full">
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">{filteredTasks.length} tasks</span>
+                      </div>
+                      
+                      {filteredTasks.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-muted-foreground">No tasks yet. Create one to get started!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredTasks.map(task => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              onToggle={handleToggleTask}
+                              onToggleSubtask={handleToggleSubtask}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    
-                    {filteredNotes.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">No notes yet. Create one to capture your thoughts!</p>
+                  </ScrollArea>
+                </div>
+                
+                <div className="lg:w-2/5 border-t lg:border-t-0 lg:border-l border-border">
+                  <ScrollArea className="h-full">
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm">{filteredNotes.length} notes</span>
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredNotes.map(note => (
-                          <NoteCard
-                            key={note.id}
-                            note={note}
-                            onClick={(n) => console.log("View note:", n.id)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
+                      
+                      {filteredNotes.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-muted-foreground">No notes yet. Create one to capture your thoughts!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredNotes.map(note => (
+                            <NoteCard
+                              key={note.id}
+                              note={note}
+                              onClick={(n) => console.log("View note:", n.id)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
         

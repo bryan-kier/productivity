@@ -1,8 +1,9 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { sql, relations } from "drizzle-orm";
+import { pgTable, text, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Users table (existing)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -16,3 +17,95 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Categories table
+export const categories = pgTable("categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+});
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  tasks: many(tasks),
+  notes: many(notes),
+}));
+
+export const insertCategorySchema = createInsertSchema(categories).pick({
+  name: true,
+});
+
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type Category = typeof categories.$inferSelect;
+
+// Tasks table
+export const tasks = pgTable("tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  refreshType: text("refresh_type").notNull().default("none"), // "none" | "daily" | "weekly"
+  categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
+  lastRefreshed: timestamp("last_refreshed"),
+});
+
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [tasks.categoryId],
+    references: [categories.id],
+  }),
+  subtasks: many(subtasks),
+}));
+
+export const insertTaskSchema = createInsertSchema(tasks).pick({
+  title: true,
+  refreshType: true,
+  categoryId: true,
+});
+
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+// Subtasks table
+export const subtasks = pgTable("subtasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+});
+
+export const subtasksRelations = relations(subtasks, ({ one }) => ({
+  task: one(tasks, {
+    fields: [subtasks.taskId],
+    references: [tasks.id],
+  }),
+}));
+
+export const insertSubtaskSchema = createInsertSchema(subtasks).pick({
+  title: true,
+  taskId: true,
+});
+
+export type InsertSubtask = z.infer<typeof insertSubtaskSchema>;
+export type Subtask = typeof subtasks.$inferSelect;
+
+// Notes table
+export const notes = pgTable("notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
+});
+
+export const notesRelations = relations(notes, ({ one }) => ({
+  category: one(categories, {
+    fields: [notes.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const insertNoteSchema = createInsertSchema(notes).pick({
+  title: true,
+  content: true,
+  categoryId: true,
+});
+
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type Note = typeof notes.$inferSelect;
