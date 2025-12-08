@@ -55,128 +55,125 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
       className="p-4 hover-elevate transition-all duration-150 group"
       data-testid={`card-task-${task.id}`}
     >
-      <div className="space-y-3">
-        {/* Header row with checkbox, title, badges, and action buttons */}
-        <div className="flex items-start gap-3">
+      <div className="space-y-2">
+        {/* First row: checkbox, chevron/toggle, title, +, 3 dots */}
+        <div className="flex items-center gap-2 w-full">
           <Checkbox
             checked={task.completed}
             onCheckedChange={() => onToggle(task.id)}
-            className="mt-0.5 data-[state=checked]:bg-success data-[state=checked]:border-success"
+            className="data-[state=checked]:bg-success data-[state=checked]:border-success flex-shrink-0"
             data-testid={`checkbox-task-${task.id}`}
           />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span 
-                className={`text-base font-medium ${task.completed ? "line-through text-muted-foreground" : ""}`}
-                data-testid={`text-task-title-${task.id}`}
-              >
-                {task.title}
-              </span>
-              {task.categoryName && (
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs"
-                  data-testid={`badge-category-${task.id}`}
-                >
-                  {task.categoryName}
-                </Badge>
-              )}
-              {task.refreshType !== "none" && (
-                <Badge 
-                  variant="outline" 
-                  className="text-xs border-primary text-primary"
-                  data-testid={`badge-refresh-${task.id}`}
-                >
-                  {task.refreshType === "daily" ? "Daily" : "Weekly"}
-                </Badge>
-              )}
-              {taskDeadline && (
-                <Badge 
-                  variant={isOverdue ? "destructive" : isDueToday ? "default" : "outline"}
-                  className="text-xs flex items-center gap-1"
-                  data-testid={`badge-deadline-${task.id}`}
-                >
-                  <Calendar className="w-3 h-3" />
-                  {format(taskDeadline, "MMM d")}
-                </Badge>
-              )}
-            </div>
-          </div>
-          
-          {/* Action buttons in header */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {onAddSubtask && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onAddSubtask(task.id)}
-                data-testid={`button-add-subtask-${task.id}`}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            )}
-            {(onEdit || onDelete) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => e.stopPropagation()}
-                    data-testid={`button-task-menu-${task.id}`}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {onEdit && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(task);
-                      }}
-                      data-testid={`button-edit-task-${task.id}`}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(task.id);
-                      }}
-                      className="text-destructive"
-                      data-testid={`button-delete-task-${task.id}`}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-        
-        {/* Subtasks section */}
-        {task.subtasks.length > 0 && (
-          <div>
+          {task.subtasks.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1 -ml-1 text-muted-foreground"
+              className="h-6 px-1 text-muted-foreground flex-shrink-0"
               onClick={() => setExpanded(!expanded)}
               data-testid={`button-expand-subtasks-${task.id}`}
             >
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <span className="text-xs ml-1">{task.subtasks.length} subtasks</span>
+              <span className="text-xs ml-1">{task.subtasks.length}</span>
             </Button>
-            
-            {expanded && (
-              <div className="mt-2 space-y-2 w-full">
+          )}
+          <span 
+            className={`text-base font-medium flex-1 min-w-0 ${task.completed ? "line-through text-muted-foreground" : ""}`}
+            data-testid={`text-task-title-${task.id}`}
+          >
+            {task.title}
+          </span>
+          {onAddSubtask && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => onAddSubtask(task.id)}
+              data-testid={`button-add-subtask-${task.id}`}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
+          {(onEdit || onDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`button-task-menu-${task.id}`}
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEdit && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(task);
+                    }}
+                    data-testid={`button-edit-task-${task.id}`}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(task.id);
+                    }}
+                    className="text-destructive"
+                    data-testid={`button-delete-task-${task.id}`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+        
+        {/* Second row: category, repeat, deadline */}
+        {(task.categoryName || task.refreshType !== "none" || taskDeadline) && (
+          <div className="flex items-center gap-2 flex-wrap w-full">
+            {task.categoryName && (
+              <Badge 
+                variant="secondary" 
+                className="text-xs"
+                data-testid={`badge-category-${task.id}`}
+              >
+                {task.categoryName}
+              </Badge>
+            )}
+            {task.refreshType !== "none" && (
+              <Badge 
+                variant="outline" 
+                className="text-xs border-primary text-primary"
+                data-testid={`badge-refresh-${task.id}`}
+              >
+                {task.refreshType === "daily" ? "Daily" : "Weekly"}
+              </Badge>
+            )}
+            {taskDeadline && (
+              <Badge 
+                variant={isOverdue ? "destructive" : isDueToday ? "default" : "outline"}
+                className="text-xs flex items-center gap-1"
+                data-testid={`badge-deadline-${task.id}`}
+              >
+                <Calendar className="w-3 h-3" />
+                {format(taskDeadline, "MMM d")}
+              </Badge>
+            )}
+          </div>
+        )}
+        
+        {/* Subtasks section */}
+        {task.subtasks.length > 0 && expanded && (
+          <div className="mt-2 space-y-2 w-full">
                 {task.subtasks.map((subtask) => {
                   const subtaskDeadline = subtask.deadline ? (typeof subtask.deadline === 'string' ? new Date(subtask.deadline) : subtask.deadline) : null;
                   const isSubtaskOverdue = subtaskDeadline && !subtask.completed && isPast(subtaskDeadline) && !isToday(subtaskDeadline);
@@ -253,8 +250,6 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
                     </div>
                   );
                 })}
-              </div>
-            )}
           </div>
         )}
       </div>

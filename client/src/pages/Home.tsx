@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,8 +59,30 @@ interface ApiNote {
   categoryName?: string;
 }
 
+const STORAGE_KEY = "taskflow-selected-view";
+const VALID_VIEWS = ["inbox", "today", "daily", "weekly"];
+
 export default function Home() {
-  const [selectedView, setSelectedView] = useState<string | null>("inbox");
+  // Load saved view from localStorage, default to "today"
+  const [selectedView, setSelectedView] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          // Check if it's a valid predefined view
+          if (VALID_VIEWS.includes(saved)) {
+            return saved;
+          }
+          // Otherwise, it might be a category ID (we'll validate this when categories load)
+          // For now, return it and we'll validate later
+          return saved;
+        }
+      } catch (error) {
+        console.error("Failed to load saved view:", error);
+      }
+    }
+    return "today";
+  });
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [editTaskOpen, setEditTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -77,6 +99,17 @@ export default function Home() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "task" | "note" | "category"; id: string; name: string } | null>(null);
   const { toast } = useToast();
+
+  // Save selected view to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && selectedView) {
+      try {
+        localStorage.setItem(STORAGE_KEY, selectedView);
+      } catch (error) {
+        console.error("Failed to save selected view:", error);
+      }
+    }
+  }, [selectedView]);
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -100,6 +133,16 @@ export default function Home() {
     name: cat.name,
     taskCount: apiTasks.filter(t => t.categoryId === cat.id).length,
   }));
+
+  // Validate saved view when categories load - if it's a category ID that no longer exists, default to "today"
+  useEffect(() => {
+    if (!categoriesLoading && selectedView && !VALID_VIEWS.includes(selectedView)) {
+      const categoryExists = categories.some(cat => cat.id === selectedView);
+      if (!categoryExists) {
+        setSelectedView("today");
+      }
+    }
+  }, [categoriesLoading, categories, selectedView]);
 
   const tasks: Task[] = apiTasks.map(task => ({
     id: task.id,
