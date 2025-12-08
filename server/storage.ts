@@ -4,8 +4,8 @@ import {
   tasks, type Task, type InsertTask,
   subtasks, type Subtask, type InsertSubtask,
   notes, type Note, type InsertNote,
-} from "@shared/schema";
-import { db } from "./db";
+} from "../shared/schema.js";
+import { db } from "./db.js";
 import { eq, and, lt } from "drizzle-orm";
 
 export interface IStorage {
