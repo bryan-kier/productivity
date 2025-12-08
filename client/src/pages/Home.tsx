@@ -27,6 +27,7 @@ import {
 import { Calendar, RefreshCw, FileText, Loader2, ArrowDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface ApiCategory {
   id: string;
@@ -476,6 +477,15 @@ export default function Home() {
     }
   };
 
+  const handleRefresh = () => {
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] }),
+    ]);
+    toast({ title: "Refreshing..." });
+  };
+
   const filteredTasks = getFilteredTasks();
   const filteredNotes = getFilteredNotes();
   const isLoading = categoriesLoading || tasksLoading || notesLoading;
@@ -652,14 +662,26 @@ export default function Home() {
                 </div>
               </>
             )}
-            {(selectedView === "daily" || selectedView === "weekly") && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
-                <RefreshCw className="w-4 h-4" />
-                <span>
-                  {selectedView === "daily" ? "Refreshes daily at 7:00 AM SGT" : "Refreshes every Sunday at 7:00 AM SGT"}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-4 ml-auto">
+              {(selectedView === "daily" || selectedView === "weekly") && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>
+                    {selectedView === "daily" ? "Refreshes daily at 7:00 AM SGT" : "Refreshes every Sunday at 7:00 AM SGT"}
+                  </span>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                className="h-9 w-9"
+                data-testid="button-refresh"
+                title="Refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </header>
           
           <div 
