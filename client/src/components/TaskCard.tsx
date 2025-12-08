@@ -69,7 +69,10 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
               variant="ghost"
               size="sm"
               className="h-6 px-1 text-muted-foreground flex-shrink-0"
-              onClick={() => setExpanded(!expanded)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded(!expanded);
+              }}
               data-testid={`button-expand-subtasks-${task.id}`}
             >
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -87,7 +90,10 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
               variant="ghost"
               size="icon"
               className="h-8 w-8 flex-shrink-0"
-              onClick={() => onAddSubtask(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubtask(task.id);
+              }}
               data-testid={`button-add-subtask-${task.id}`}
             >
               <Plus className="w-4 h-4" />
@@ -211,7 +217,7 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 opacity-0 group-hover/subtask:opacity-100 transition-opacity flex-shrink-0"
+                              className="h-6 w-6 flex-shrink-0"
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`button-subtask-menu-${subtask.id}`}
                             >

@@ -132,7 +132,7 @@ export default function CategorySidebar({
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-8 w-8 flex-shrink-0"
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`button-category-menu-${category.id}`}
                             >

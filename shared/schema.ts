@@ -55,11 +55,22 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(subtasks),
 }));
 
-export const insertTaskSchema = createInsertSchema(tasks).pick({
+const baseTaskSchema = createInsertSchema(tasks).pick({
   title: true,
   refreshType: true,
   categoryId: true,
-  deadline: true,
+});
+
+export const insertTaskSchema = baseTaskSchema.extend({
+  deadline: z.preprocess((val) => {
+    if (val === null || val === undefined || val === "") return null;
+    if (val instanceof Date) return val;
+    if (typeof val === "string") {
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+  }, z.date().nullable().optional()),
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -81,10 +92,21 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
   }),
 }));
 
-export const insertSubtaskSchema = createInsertSchema(subtasks).pick({
+const baseSubtaskSchema = createInsertSchema(subtasks).pick({
   title: true,
   taskId: true,
-  deadline: true,
+});
+
+export const insertSubtaskSchema = baseSubtaskSchema.extend({
+  deadline: z.preprocess((val) => {
+    if (val === null || val === undefined || val === "") return null;
+    if (val instanceof Date) return val;
+    if (typeof val === "string") {
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+  }, z.date().nullable().optional()),
 });
 
 export type InsertSubtask = z.infer<typeof insertSubtaskSchema>;

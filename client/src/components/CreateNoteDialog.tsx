@@ -43,7 +43,7 @@ export default function CreateNoteDialog({
     onCreateNote({
       title: title.trim(),
       content: content.trim(),
-      categoryId: categoryId || undefined,
+      categoryId: categoryId && categoryId !== "none" ? categoryId : undefined,
     });
     
     setTitle("");

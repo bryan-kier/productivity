@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { Calendar, RefreshCw, FileText, Loader2, ArrowDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -97,7 +97,7 @@ export default function Home() {
   const [editSubtaskOpen, setEditSubtaskOpen] = useState(false);
   const [editingSubtask, setEditingSubtask] = useState<{ id: string; title: string; completed: boolean; deadline?: Date | string | null } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "task" | "note" | "category"; id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "task" | "subtask" | "note" | "category"; id: string; name: string } | null>(null);
   const { toast } = useToast();
 
   // Save selected view to localStorage whenever it changes
@@ -416,7 +416,7 @@ export default function Home() {
     const task = tasks.find(t => t.subtasks.some(st => st.id === id));
     const subtask = task?.subtasks.find(st => st.id === id);
     if (subtask) {
-      setDeleteTarget({ type: "task", id, name: subtask.title }); // Reusing delete dialog
+      setDeleteTarget({ type: "subtask", id, name: subtask.title });
       setDeleteConfirmOpen(true);
     }
   };
@@ -424,22 +424,19 @@ export default function Home() {
   const handleConfirmDelete = () => {
     if (!deleteTarget) return;
     
-    // Check if it's a subtask (check if it exists in any task's subtasks)
-    const isSubtask = tasks.some(t => t.subtasks.some(st => st.id === deleteTarget.id));
-    if (isSubtask) {
-      deleteSubtaskMutation.mutate(deleteTarget.id);
-    } else {
-      switch (deleteTarget.type) {
-        case "task":
-          deleteTaskMutation.mutate(deleteTarget.id);
-          break;
-        case "note":
-          deleteNoteMutation.mutate(deleteTarget.id);
-          break;
-        case "category":
-          deleteCategoryMutation.mutate(deleteTarget.id);
-          break;
-      }
+    switch (deleteTarget.type) {
+      case "task":
+        deleteTaskMutation.mutate(deleteTarget.id);
+        break;
+      case "subtask":
+        deleteSubtaskMutation.mutate(deleteTarget.id);
+        break;
+      case "note":
+        deleteNoteMutation.mutate(deleteTarget.id);
+        break;
+      case "category":
+        deleteCategoryMutation.mutate(deleteTarget.id);
+        break;
     }
     
     setDeleteConfirmOpen(false);
@@ -482,6 +479,150 @@ export default function Home() {
   const filteredTasks = getFilteredTasks();
   const filteredNotes = getFilteredNotes();
   const isLoading = categoriesLoading || tasksLoading || notesLoading;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullStartY = useRef(0);
+  const pullCurrentY = useRef(0);
+  const isDragging = useRef(false);
+  const PULL_THRESHOLD = 80; // Distance in pixels to trigger refresh
+
+  // Pull-to-refresh: detect pull gesture from top
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only start pull if at the top of the scroll container
+      if (container.scrollTop === 0) {
+        pullStartY.current = e.touches[0].clientY;
+        isDragging.current = true;
+        setIsPulling(true);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current || container.scrollTop > 0) {
+        isDragging.current = false;
+        setIsPulling(false);
+        setPullDistance(0);
+        return;
+      }
+
+      pullCurrentY.current = e.touches[0].clientY;
+      const distance = Math.max(0, pullCurrentY.current - pullStartY.current);
+      
+      // Only allow pulling down (positive distance)
+      if (distance > 0) {
+        setPullDistance(distance);
+        // Prevent default scrolling when pulling
+        if (distance > 10) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDragging.current) return;
+
+      if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+        setIsRefreshing(true);
+        // Refresh all queries
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/categories"] }),
+        ]).then(() => {
+          // Reset after refresh completes
+          setTimeout(() => {
+            setIsRefreshing(false);
+            setPullDistance(0);
+            setIsPulling(false);
+          }, 300);
+        });
+      } else {
+        // Snap back if not enough pull
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+      
+      isDragging.current = false;
+    };
+
+    // Mouse events for desktop
+    const handleMouseDown = (e: MouseEvent) => {
+      if (container.scrollTop === 0 && e.button === 0) {
+        pullStartY.current = e.clientY;
+        isDragging.current = true;
+        setIsPulling(true);
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || container.scrollTop > 0) {
+        isDragging.current = false;
+        setIsPulling(false);
+        setPullDistance(0);
+        return;
+      }
+
+      pullCurrentY.current = e.clientY;
+      const distance = Math.max(0, pullCurrentY.current - pullStartY.current);
+      
+      if (distance > 0) {
+        setPullDistance(distance);
+        if (distance > 10) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (!isDragging.current) return;
+
+      if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+        setIsRefreshing(true);
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/categories"] }),
+        ]).then(() => {
+          setTimeout(() => {
+            setIsRefreshing(false);
+            setPullDistance(0);
+            setIsPulling(false);
+          }, 300);
+        });
+      } else {
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+      
+      isDragging.current = false;
+    };
+
+    // Touch events
+    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+
+    // Mouse events
+    container.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+      container.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [pullDistance, isRefreshing]);
 
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
@@ -515,13 +656,50 @@ export default function Home() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
                 <RefreshCw className="w-4 h-4" />
                 <span>
-                  {selectedView === "daily" ? "Refreshes daily at 7:00 AM" : "Refreshes every Sunday"}
+                  {selectedView === "daily" ? "Refreshes daily at 7:00 AM SGT" : "Refreshes every Sunday at 7:00 AM SGT"}
                 </span>
               </div>
             )}
           </header>
           
-          <div className="flex-1 overflow-y-auto">
+          <div 
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto relative"
+            style={{
+              transform: isPulling || isRefreshing ? `translateY(${Math.min(pullDistance, PULL_THRESHOLD)}px)` : 'translateY(0)',
+              transition: isPulling || isRefreshing ? 'none' : 'transform 0.3s ease-out',
+            }}
+          >
+            {/* Pull-to-refresh indicator */}
+            {(isPulling || isRefreshing) && (
+              <div 
+                className="absolute top-0 left-0 right-0 flex items-center justify-center"
+                style={{
+                  height: `${Math.min(pullDistance, PULL_THRESHOLD)}px`,
+                  transform: `translateY(-${Math.min(pullDistance, PULL_THRESHOLD)}px)`,
+                }}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  {isRefreshing ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  ) : (
+                    <ArrowDown 
+                      className="w-6 h-6 text-muted-foreground transition-transform"
+                      style={{
+                        transform: pullDistance >= PULL_THRESHOLD ? 'rotate(180deg)' : 'rotate(0deg)',
+                      }}
+                    />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {isRefreshing 
+                      ? 'Refreshing...' 
+                      : pullDistance >= PULL_THRESHOLD 
+                        ? 'Release to refresh' 
+                        : 'Pull to refresh'}
+                  </span>
+                </div>
+              </div>
+            )}
             {isLoading ? (
               <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -569,6 +747,8 @@ export default function Home() {
                             onClick={(n) => console.log("View note:", n.id)}
                             onEdit={handleEditNote}
                             onDelete={handleDeleteNote}
+                            categories={categories}
+                            onUpdateNote={handleUpdateNote}
                           />
                         ))}
                       </div>

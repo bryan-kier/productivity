@@ -53,7 +53,7 @@ export default function CreateTaskDialog({
     onCreateTask({
       title: title.trim(),
       refreshType,
-      categoryId: categoryId || undefined,
+      categoryId: categoryId && categoryId !== "none" ? categoryId : undefined,
       deadline: deadline,
     });
     
@@ -92,8 +92,8 @@ export default function CreateTaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Refresh</SelectItem>
-                  <SelectItem value="daily">Daily (7am)</SelectItem>
-                  <SelectItem value="weekly">Weekly (Sunday)</SelectItem>
+                  <SelectItem value="daily">Daily (7am SGT)</SelectItem>
+                  <SelectItem value="weekly">Weekly (Sunday 7am SGT)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -116,10 +116,27 @@ export default function CreateTaskDialog({
             </div>
             
             <div className="space-y-2">
-              <Label>Deadline (Optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Deadline (Optional)</Label>
+                {deadline && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeadline(undefined);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
@@ -135,7 +152,15 @@ export default function CreateTaskDialog({
                   <Calendar
                     mode="single"
                     selected={deadline}
-                    onSelect={setDeadline}
+                    onSelect={(date) => {
+                      if (date) {
+                        // Set to midnight in local timezone to avoid timezone issues
+                        const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                        setDeadline(localDate);
+                      } else {
+                        setDeadline(undefined);
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>

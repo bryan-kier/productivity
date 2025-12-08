@@ -79,22 +79,43 @@ export async function registerRoutes(
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Task validation error:", error.errors);
         res.status(400).json({ error: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to create task" });
+        console.error("Task creation error:", error);
+        res.status(500).json({ error: "Failed to create task", details: error instanceof Error ? error.message : String(error) });
       }
     }
   });
 
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
-      const task = await storage.updateTask(req.params.id, req.body);
+      const updates: any = { ...req.body };
+      // Convert deadline ISO string to Date object if present
+      if (updates.deadline !== undefined) {
+        if (updates.deadline === null || updates.deadline === "") {
+          updates.deadline = null;
+        } else if (typeof updates.deadline === "string") {
+          const date = new Date(updates.deadline);
+          if (isNaN(date.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date format" });
+          }
+          updates.deadline = date;
+        } else if (updates.deadline instanceof Date) {
+          // Already a Date object, use as is
+          if (isNaN(updates.deadline.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date" });
+          }
+        }
+      }
+      const task = await storage.updateTask(req.params.id, updates);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
       res.json(task);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update task" });
+      console.error("Task update error:", error);
+      res.status(500).json({ error: "Failed to update task", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -124,22 +145,43 @@ export async function registerRoutes(
       res.status(201).json(subtask);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Subtask validation error:", error.errors);
         res.status(400).json({ error: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to create subtask" });
+        console.error("Subtask creation error:", error);
+        res.status(500).json({ error: "Failed to create subtask", details: error instanceof Error ? error.message : String(error) });
       }
     }
   });
 
   app.patch("/api/subtasks/:id", async (req, res) => {
     try {
-      const subtask = await storage.updateSubtask(req.params.id, req.body);
+      const updates: any = { ...req.body };
+      // Convert deadline ISO string to Date object if present
+      if (updates.deadline !== undefined) {
+        if (updates.deadline === null || updates.deadline === "") {
+          updates.deadline = null;
+        } else if (typeof updates.deadline === "string") {
+          const date = new Date(updates.deadline);
+          if (isNaN(date.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date format" });
+          }
+          updates.deadline = date;
+        } else if (updates.deadline instanceof Date) {
+          // Already a Date object, use as is
+          if (isNaN(updates.deadline.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date" });
+          }
+        }
+      }
+      const subtask = await storage.updateSubtask(req.params.id, updates);
       if (!subtask) {
         return res.status(404).json({ error: "Subtask not found" });
       }
       res.json(subtask);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update subtask" });
+      console.error("Subtask update error:", error);
+      res.status(500).json({ error: "Failed to update subtask", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
