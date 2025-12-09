@@ -173,9 +173,14 @@ export default function Home() {
     mutationFn: async (name: string) => {
       return apiRequest("POST", "/api/categories", { name });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Category created" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Category queued for sync", description: "Will be created when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        toast({ title: "Category created" });
+      }
     },
   });
 
@@ -188,9 +193,14 @@ export default function Home() {
         deadline: task.deadline ? task.deadline.toISOString() : null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Task created" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Task queued for sync", description: "Will be created when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Task created" });
+      }
     },
   });
 
@@ -202,9 +212,14 @@ export default function Home() {
       }
       return apiRequest("PATCH", `/api/tasks/${id}`, payload);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Task updated" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Update queued for sync", description: "Will be applied when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Task updated" });
+      }
     },
   });
 
@@ -216,9 +231,14 @@ export default function Home() {
       }
       return apiRequest("PATCH", `/api/subtasks/${id}`, payload);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Subtask updated" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Update queued for sync", description: "Will be applied when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Subtask updated" });
+      }
     },
   });
 
@@ -230,9 +250,14 @@ export default function Home() {
         deadline: subtask.deadline ? subtask.deadline.toISOString() : null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Subtask created" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Subtask queued for sync", description: "Will be created when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Subtask created" });
+      }
     },
   });
 
@@ -240,9 +265,14 @@ export default function Home() {
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/tasks/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Task deleted" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Delete queued for sync", description: "Will be deleted when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Task deleted" });
+      }
     },
   });
 
@@ -250,24 +280,34 @@ export default function Home() {
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/notes/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      toast({ title: "Note deleted" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Delete queued for sync", description: "Will be deleted when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+        toast({ title: "Note deleted" });
+      }
     },
   });
 
   const deleteCategoryMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/categories/${id}`);
-      return id;
+      const response = await apiRequest("DELETE", `/api/categories/${id}`);
+      return { id, response };
     },
-    onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      toast({ title: "Category deleted" });
-      if (selectedView === id) {
-        setSelectedView("inbox");
+    onSuccess: async ({ id, response }) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Delete queued for sync", description: "Will be deleted when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+        toast({ title: "Category deleted" });
+        if (selectedView === id) {
+          setSelectedView("inbox");
+        }
       }
     },
   });
@@ -276,9 +316,14 @@ export default function Home() {
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
       return apiRequest("PATCH", `/api/categories/${id}`, { name });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Category updated" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Update queued for sync", description: "Will be applied when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        toast({ title: "Category updated" });
+      }
     },
   });
 
@@ -286,9 +331,14 @@ export default function Home() {
     mutationFn: async ({ id, updates }: { id: string; updates: { title?: string; content?: string; categoryId?: string | null } }) => {
       return apiRequest("PATCH", `/api/notes/${id}`, updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      toast({ title: "Note updated" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Update queued for sync", description: "Will be applied when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+        toast({ title: "Note updated" });
+      }
     },
   });
 
@@ -300,9 +350,14 @@ export default function Home() {
         categoryId: note.categoryId || null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      toast({ title: "Note created" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Note queued for sync", description: "Will be created when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+        toast({ title: "Note created" });
+      }
     },
   });
 
@@ -406,9 +461,14 @@ export default function Home() {
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/subtasks/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Subtask deleted" });
+    onSuccess: async (response) => {
+      const isOffline = response.status === 202;
+      if (isOffline) {
+        toast({ title: "Delete queued for sync", description: "Will be deleted when online" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        toast({ title: "Subtask deleted" });
+      }
     },
   });
 

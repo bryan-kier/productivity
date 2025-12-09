@@ -1,26 +1,60 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { Persister, PersistedClient } from "@tanstack/query-persist-client-core";
+import localforage from "localforage";
+import { apiRequest } from "./api";
+import { throwIfResNotOk } from "./network";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
-  }
-}
+const STORAGE_KEY = "taskflow-query-cache-v1";
+const CACHE_STORE = localforage.createInstance({
+  name: "taskflow",
+  storeName: "reactQueryCache",
+});
 
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+const persister: Persister = {
+  async persistClient(clientState: PersistedClient) {
+    await CACHE_STORE.setItem(STORAGE_KEY, clientState);
+  },
+  async restoreClient() {
+    return (await CACHE_STORE.getItem<PersistedClient>(STORAGE_KEY)) ?? undefined;
+  },
+  async removeClient() {
+    await CACHE_STORE.removeItem(STORAGE_KEY);
+  },
+};
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      queryFn: getQueryFn({ on401: "throw" }),
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      staleTime: Infinity,
+      retry: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
+const QUERY_PERSISTENCE_BUSTER = "taskflow-v1";
+const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
+
+if (typeof window !== "undefined") {
+  const [unsubscribe, restorePromise] = persistQueryClient({
+    queryClient,
+    persister,
+    maxAge: CACHE_TTL,
+    buster: QUERY_PERSISTENCE_BUSTER,
   });
 
-  await throwIfResNotOk(res);
-  return res;
+  restorePromise.catch(async (error) => {
+    console.error("Failed to restore cached queries:", error);
+    await persister.removeClient();
+    unsubscribe();
+  });
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -41,17 +75,4 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
+export { apiRequest };

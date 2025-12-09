@@ -48,17 +48,36 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\./,
+            urlPattern: /^\/api\//,
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
               expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60, // 1 hour
+              },
+              networkTimeoutSeconds: 3,
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === "document",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pages-cache",
+              expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 5 * 60, // 5 minutes
+                maxAgeSeconds: 24 * 60 * 60, // 24 hours
               },
             },
           },
         ],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
       },
     }),
     ...(process.env.NODE_ENV !== "production" &&

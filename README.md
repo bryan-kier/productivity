@@ -105,3 +105,5 @@ The application will be available at `http://localhost:5000`.
 -   [PWA Setup Guide](PWA_SETUP.md)
 -   [Supabase Setup](SUPABASE_SETUP.md)
 -   [Design Guidelines](design_guidelines.md)
+
+

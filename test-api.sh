@@ -51,3 +51,5 @@ echo "1. Vercel function logs"
 echo "2. DATABASE_URL is set correctly"
 echo "3. Database tables exist"
 
+
+
