@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -45,6 +45,7 @@ export const tasks = pgTable("tasks", {
   categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
   lastRefreshed: timestamp("last_refreshed"),
   deadline: timestamp("deadline"),
+  order: integer("order").default(0),
 });
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -118,6 +119,7 @@ export const notes = pgTable("notes", {
   title: text("title").notNull(),
   content: text("content").notNull().default(""),
   categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
+  order: integer("order").default(0),
 });
 
 export const notesRelations = relations(notes, ({ one }) => ({

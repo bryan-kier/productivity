@@ -6,7 +6,7 @@ import {
   notes, type Note, type InsertNote,
 } from "../shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -25,15 +25,16 @@ export interface IStorage {
   getTasks(): Promise<(Task & { categoryName?: string; subtasks: Subtask[] })[]>;
   getTask(id: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed'>>): Promise<Task | undefined>;
+  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed' | 'deadline'>>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<void>;
   resetDailyTasks(): Promise<void>;
   resetWeeklyTasks(): Promise<void>;
+  reorderTasks(taskIds: string[]): Promise<void>;
   
   // Subtasks
   getSubtasks(taskId: string): Promise<Subtask[]>;
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
-  updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed'>>): Promise<Subtask | undefined>;
+  updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined>;
   deleteSubtask(id: string): Promise<void>;
   
   // Notes
@@ -42,6 +43,7 @@ export interface IStorage {
   createNote(note: InsertNote): Promise<Note>;
   updateNote(id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'categoryId'>>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<void>;
+  reorderNotes(noteIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -87,7 +89,7 @@ export class DatabaseStorage implements IStorage {
 
   // Tasks
   async getTasks(): Promise<(Task & { categoryName?: string; subtasks: Subtask[] })[]> {
-    const allTasks = await db.select().from(tasks);
+    const allTasks = await db.select().from(tasks).orderBy(asc(tasks.order), asc(tasks.id));
     const allSubtasks = await db.select().from(subtasks);
     const allCategories = await db.select().from(categories);
     
@@ -104,11 +106,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
-    const [task] = await db.insert(tasks).values(insertTask).returning();
+    const allTasks = await db.select().from(tasks);
+    const maxOrder = allTasks.length > 0 
+      ? Math.max(...allTasks.map(t => t.order ?? 0))
+      : -1;
+    const [task] = await db.insert(tasks).values({ ...insertTask, order: maxOrder + 1 }).returning();
     return task;
   }
 
-  async updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed'>>): Promise<Task | undefined> {
+  async updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed' | 'deadline'>>): Promise<Task | undefined> {
     const [task] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
     return task || undefined;
   }
@@ -142,6 +148,12 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
+  async reorderTasks(taskIds: string[]): Promise<void> {
+    for (let i = 0; i < taskIds.length; i++) {
+      await db.update(tasks).set({ order: i }).where(eq(tasks.id, taskIds[i]));
+    }
+  }
+
   // Subtasks
   async getSubtasks(taskId: string): Promise<Subtask[]> {
     return db.select().from(subtasks).where(eq(subtasks.taskId, taskId));
@@ -152,7 +164,7 @@ export class DatabaseStorage implements IStorage {
     return subtask;
   }
 
-  async updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed'>>): Promise<Subtask | undefined> {
+  async updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined> {
     const [subtask] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
     return subtask || undefined;
   }
@@ -163,7 +175,7 @@ export class DatabaseStorage implements IStorage {
 
   // Notes
   async getNotes(): Promise<(Note & { categoryName?: string })[]> {
-    const allNotes = await db.select().from(notes);
+    const allNotes = await db.select().from(notes).orderBy(asc(notes.order), asc(notes.id));
     const allCategories = await db.select().from(categories);
     
     return allNotes.map(note => ({
@@ -178,7 +190,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createNote(insertNote: InsertNote): Promise<Note> {
-    const [note] = await db.insert(notes).values(insertNote).returning();
+    const allNotes = await db.select().from(notes);
+    const maxOrder = allNotes.length > 0 
+      ? Math.max(...allNotes.map(n => n.order ?? 0))
+      : -1;
+    const [note] = await db.insert(notes).values({ ...insertNote, order: maxOrder + 1 }).returning();
     return note;
   }
 
@@ -189,6 +205,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNote(id: string): Promise<void> {
     await db.delete(notes).where(eq(notes.id, id));
+  }
+
+  async reorderNotes(noteIds: string[]): Promise<void> {
+    for (let i = 0; i < noteIds.length; i++) {
+      await db.update(notes).set({ order: i }).where(eq(notes.id, noteIds[i]));
+    }
   }
 }
 

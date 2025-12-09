@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import CategorySidebar, { Category } from "@/components/CategorySidebar";
 import TaskCard, { Task, RefreshType } from "@/components/TaskCard";
 import NoteCard, { Note } from "@/components/NoteCard";
@@ -24,10 +23,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, RefreshCw, FileText, Loader2, ArrowDown } from "lucide-react";
+import { Calendar, RefreshCw, FileText, Loader2, ArrowDown, GripVertical } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ApiCategory {
   id: string;
@@ -62,6 +78,74 @@ interface ApiNote {
 
 const STORAGE_KEY = "taskflow-selected-view";
 const VALID_VIEWS = ["inbox", "today", "daily", "weekly"];
+
+function SortableTaskCard({ task, ...props }: { task: Task } & Omit<React.ComponentProps<typeof TaskCard>, 'task'>) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div className="flex items-start gap-2">
+      <button 
+        type="button"
+        {...attributes} 
+        {...listeners} 
+        className="cursor-grab active:cursor-grabbing p-1 mt-3 shrink-0"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-5 w-5 text-muted-foreground" />
+      </button>
+      <div ref={setNodeRef} style={style} className={`flex-1 min-w-0 ${isDragging ? "z-50" : ""}`}>
+        <TaskCard task={task} {...props} />
+      </div>
+    </div>
+  );
+}
+
+function SortableNoteCard({ note, ...props }: { note: Note } & Omit<React.ComponentProps<typeof NoteCard>, 'note'>) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: note.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div className="flex items-start gap-2">
+      <button 
+        type="button"
+        {...attributes} 
+        {...listeners} 
+        className="cursor-grab active:cursor-grabbing p-1 mt-3 shrink-0"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-5 w-5 text-muted-foreground" />
+      </button>
+      <div ref={setNodeRef} style={style} className={`flex-1 min-w-0 ${isDragging ? "z-50" : ""}`}>
+        <NoteCard note={note} {...props} />
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   // Load saved view from localStorage, default to "today"
@@ -99,6 +183,8 @@ export default function Home() {
   const [editingSubtask, setEditingSubtask] = useState<{ id: string; title: string; completed: boolean; deadline?: Date | string | null } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "task" | "subtask" | "note" | "category"; id: string; name: string } | null>(null);
+  const [localTaskOrder, setLocalTaskOrder] = useState<string[]>([]);
+  const [localNoteOrder, setLocalNoteOrder] = useState<string[]>([]);
   const { toast } = useToast();
 
   // Save selected view to localStorage whenever it changes
@@ -168,6 +254,44 @@ export default function Home() {
     categoryId: note.categoryId || undefined,
     categoryName: note.categoryName,
   }));
+
+  useEffect(() => {
+    if (!tasks.length) return;
+    setLocalTaskOrder((previous) => {
+      if (!previous.length) {
+        return tasks.map((task) => task.id);
+      }
+      const existing = previous.filter((id) => tasks.some((task) => task.id === id));
+      const newcomers = tasks.map((task) => task.id).filter((id) => !existing.includes(id));
+      return [...existing, ...newcomers];
+    });
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!notes.length) return;
+    setLocalNoteOrder((previous) => {
+      if (!previous.length) {
+        return notes.map((note) => note.id);
+      }
+      const existing = previous.filter((id) => notes.some((note) => note.id === id));
+      const newcomers = notes.map((note) => note.id).filter((id) => !existing.includes(id));
+      return [...existing, ...newcomers];
+    });
+  }, [notes]);
+
+  const orderedTasks = [...tasks].sort((a, b) => {
+    const map = new Map(localTaskOrder.map((id, index) => [id, index]));
+    const aIndex = map.has(a.id) ? map.get(a.id)! : Infinity;
+    const bIndex = map.has(b.id) ? map.get(b.id)! : Infinity;
+    return aIndex - bIndex;
+  });
+
+  const orderedNotes = [...notes].sort((a, b) => {
+    const map = new Map(localNoteOrder.map((id, index) => [id, index]));
+    const aIndex = map.has(a.id) ? map.get(a.id)! : Infinity;
+    const bIndex = map.has(b.id) ? map.get(b.id)! : Infinity;
+    return aIndex - bIndex;
+  });
 
   const createCategoryMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -342,6 +466,30 @@ export default function Home() {
     },
   });
 
+  const reorderTasksMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      return apiRequest("POST", "/api/tasks/reorder", { taskIds });
+    },
+    onError: (err) => {
+      toast({
+        title: "Failed to sync task order",
+        description: err instanceof Error ? err.message : "An error occurred",
+      });
+    },
+  });
+
+  const reorderNotesMutation = useMutation({
+    mutationFn: async (noteIds: string[]) => {
+      return apiRequest("POST", "/api/notes/reorder", { noteIds });
+    },
+    onError: (err) => {
+      toast({
+        title: "Failed to sync note order",
+        description: err instanceof Error ? err.message : "An error occurred",
+      });
+    },
+  });
+
   const createNoteMutation = useMutation({
     mutationFn: async (note: { title: string; content: string; categoryId?: string }) => {
       return apiRequest("POST", "/api/notes", {
@@ -507,23 +655,23 @@ export default function Home() {
   const getFilteredTasks = () => {
     switch (selectedView) {
       case "inbox":
-        return tasks;
+        return orderedTasks;
       case "today":
-        return tasks.filter(t => t.refreshType === "daily" || !t.completed);
+        return orderedTasks.filter(t => t.refreshType === "daily" || !t.completed);
       case "daily":
-        return tasks.filter(t => t.refreshType === "daily");
+        return orderedTasks.filter(t => t.refreshType === "daily");
       case "weekly":
-        return tasks.filter(t => t.refreshType === "weekly");
+        return orderedTasks.filter(t => t.refreshType === "weekly");
       default:
-        return tasks.filter(t => t.categoryId === selectedView);
+        return orderedTasks.filter(t => t.categoryId === selectedView);
     }
   };
 
   const getFilteredNotes = () => {
     if (selectedView === "inbox" || selectedView === "today" || selectedView === "daily" || selectedView === "weekly") {
-      return notes;
+      return orderedNotes;
     }
-    return notes.filter(n => n.categoryId === selectedView);
+    return orderedNotes.filter(n => n.categoryId === selectedView);
   };
 
   const getViewTitle = () => {
@@ -537,13 +685,79 @@ export default function Home() {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    try {
+      if (localTaskOrder.length) {
+        await reorderTasksMutation.mutateAsync(localTaskOrder);
+      }
+      if (localNoteOrder.length) {
+        await reorderNotesMutation.mutateAsync(localNoteOrder);
+      }
+    } catch {
+      // Error handled by mutation
+    }
+    
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] }),
     ]);
     toast({ title: "Refreshing..." });
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent, type: 'tasks' | 'notes') => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    if (type === 'tasks') {
+      const filteredTasks = getFilteredTasks();
+      const oldIndex = filteredTasks.findIndex((task) => task.id === active.id);
+      const newIndex = filteredTasks.findIndex((task) => task.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
+
+      const reorderedFiltered = arrayMove(filteredTasks, oldIndex, newIndex);
+      const reorderedFilteredIds = reorderedFiltered.map((task) => task.id);
+      const allTaskIds = localTaskOrder.length ? localTaskOrder : orderedTasks.map((t) => t.id);
+      const filteredTaskIdsSet = new Set(filteredTasks.map((t) => t.id));
+      const otherTaskIds = allTaskIds.filter((id) => !filteredTaskIdsSet.has(id));
+      const newTaskOrder = [...reorderedFilteredIds, ...otherTaskIds];
+
+      setLocalTaskOrder(newTaskOrder);
+    } else {
+      const filteredNotes = getFilteredNotes();
+      const oldIndex = filteredNotes.findIndex((note) => note.id === active.id);
+      const newIndex = filteredNotes.findIndex((note) => note.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
+
+      const reorderedFiltered = arrayMove(filteredNotes, oldIndex, newIndex);
+      const reorderedFilteredIds = reorderedFiltered.map((note) => note.id);
+      const allNoteIds = localNoteOrder.length ? localNoteOrder : orderedNotes.map((n) => n.id);
+      const filteredNoteIdsSet = new Set(filteredNotes.map((n) => n.id));
+      const otherNoteIds = allNoteIds.filter((id) => !filteredNoteIdsSet.has(id));
+      const newNoteOrder = [...reorderedFilteredIds, ...otherNoteIds];
+
+      setLocalNoteOrder(newNoteOrder);
+    }
   };
 
   const filteredTasks = getFilteredTasks();
@@ -795,21 +1009,32 @@ export default function Home() {
                         <p className="text-muted-foreground">No tasks yet. Create one to get started!</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {filteredTasks.map(task => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onToggle={handleToggleTask}
-                            onToggleSubtask={handleToggleSubtask}
-                            onAddSubtask={handleAddSubtask}
-                            onEdit={handleEditTask}
-                            onDelete={handleDeleteTask}
-                            onEditSubtask={handleEditSubtask}
-                            onDeleteSubtask={handleDeleteSubtask}
-                          />
-                        ))}
-                      </div>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(e) => handleDragEnd(e, 'tasks')}
+                      >
+                        <SortableContext
+                          items={filteredTasks.map((t) => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-3">
+                            {filteredTasks.map(task => (
+                              <SortableTaskCard
+                                key={task.id}
+                                task={task}
+                                onToggle={handleToggleTask}
+                                onToggleSubtask={handleToggleSubtask}
+                                onAddSubtask={handleAddSubtask}
+                                onEdit={handleEditTask}
+                                onDelete={handleDeleteTask}
+                                onEditSubtask={handleEditSubtask}
+                                onDeleteSubtask={handleDeleteSubtask}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
                     )}
                   </div>
                 </div>
@@ -821,19 +1046,30 @@ export default function Home() {
                         <p className="text-muted-foreground">No notes yet. Create one to capture your thoughts!</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {filteredNotes.map(note => (
-                          <NoteCard
-                            key={note.id}
-                            note={note}
-                            onClick={() => {}}
-                            onEdit={handleEditNote}
-                            onDelete={handleDeleteNote}
-                            categories={categories}
-                            onUpdateNote={handleUpdateNote}
-                          />
-                        ))}
-                      </div>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(e) => handleDragEnd(e, 'notes')}
+                      >
+                        <SortableContext
+                          items={filteredNotes.map((n) => n.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-3">
+                            {filteredNotes.map(note => (
+                              <SortableNoteCard
+                                key={note.id}
+                                note={note}
+                                onClick={() => {}}
+                                onEdit={handleEditNote}
+                                onDelete={handleDeleteNote}
+                                categories={categories}
+                                onUpdateNote={handleUpdateNote}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
                     )}
                   </div>
                 </div>

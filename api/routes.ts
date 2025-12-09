@@ -106,6 +106,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tasks/reorder", async (req, res) => {
+    try {
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "taskIds array is required" });
+      }
+      await storage.reorderTasks(taskIds);
+      res.json({ message: "Tasks reordered successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder tasks" });
+    }
+  });
+
   // === Subtasks ===
   app.get("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
@@ -196,6 +209,19 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
+  app.post("/api/notes/reorder", async (req, res) => {
+    try {
+      const { noteIds } = req.body;
+      if (!Array.isArray(noteIds) || noteIds.length === 0) {
+        return res.status(400).json({ error: "noteIds array is required" });
+      }
+      await storage.reorderNotes(noteIds);
+      res.json({ message: "Notes reordered successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder notes" });
     }
   });
 
