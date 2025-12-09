@@ -64,7 +64,6 @@ export async function registerRoutes(
       const tasks = await storage.getTasks();
       res.json(tasks);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
       res.status(500).json({ 
         error: "Failed to fetch tasks",
         details: error instanceof Error ? error.message : String(error)
@@ -79,10 +78,8 @@ export async function registerRoutes(
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Task validation error:", error.errors);
         res.status(400).json({ error: error.errors });
       } else {
-        console.error("Task creation error:", error);
         res.status(500).json({ error: "Failed to create task", details: error instanceof Error ? error.message : String(error) });
       }
     }
@@ -114,7 +111,6 @@ export async function registerRoutes(
       }
       res.json(task);
     } catch (error) {
-      console.error("Task update error:", error);
       res.status(500).json({ error: "Failed to update task", details: error instanceof Error ? error.message : String(error) });
     }
   });
@@ -145,10 +141,8 @@ export async function registerRoutes(
       res.status(201).json(subtask);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Subtask validation error:", error.errors);
         res.status(400).json({ error: error.errors });
       } else {
-        console.error("Subtask creation error:", error);
         res.status(500).json({ error: "Failed to create subtask", details: error instanceof Error ? error.message : String(error) });
       }
     }
@@ -180,7 +174,6 @@ export async function registerRoutes(
       }
       res.json(subtask);
     } catch (error) {
-      console.error("Subtask update error:", error);
       res.status(500).json({ error: "Failed to update subtask", details: error instanceof Error ? error.message : String(error) });
     }
   });
@@ -200,7 +193,6 @@ export async function registerRoutes(
       const notes = await storage.getNotes();
       res.json(notes);
     } catch (error) {
-      console.error("Error fetching notes:", error);
       res.status(500).json({ 
         error: "Failed to fetch notes",
         details: error instanceof Error ? error.message : String(error)

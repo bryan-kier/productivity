@@ -79,7 +79,7 @@ export default function Home() {
           return saved;
         }
       } catch (error) {
-        console.error("Failed to load saved view:", error);
+        // Failed to load saved view
       }
     }
     return "today";
@@ -107,7 +107,7 @@ export default function Home() {
       try {
         localStorage.setItem(STORAGE_KEY, selectedView);
       } catch (error) {
-        console.error("Failed to save selected view:", error);
+        // Failed to save selected view
       }
     }
   }, [selectedView]);
@@ -826,7 +826,7 @@ export default function Home() {
                           <NoteCard
                             key={note.id}
                             note={note}
-                            onClick={(n) => console.log("View note:", n.id)}
+                            onClick={() => {}}
                             onEdit={handleEditNote}
                             onDelete={handleDeleteNote}
                             categories={categories}

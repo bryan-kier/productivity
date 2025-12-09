@@ -21,8 +21,8 @@ export const pool = new Pool({
 });
 
 // Handle pool errors
-pool.on("error", (err) => {
-  console.error("Unexpected error on idle database client:", err);
+pool.on("error", () => {
+  // Unexpected error on idle database client
 });
 
 // Test database connection
@@ -32,24 +32,18 @@ export async function testConnection(): Promise<boolean> {
     await client.query("SELECT NOW()");
     client.release();
     return true;
-  } catch (error) {
-    console.error("Database connection test failed:", error);
+  } catch {
     return false;
   }
 }
 
 // Initialize database connection on startup
 export async function initializeDatabase(): Promise<void> {
-  console.log("🔌 Testing database connection...");
   const isConnected = await testConnection();
   
   if (!isConnected) {
-    console.error("❌ ERROR: Failed to connect to database");
-    console.error("   Please verify your DATABASE_URL is correct and the database is accessible");
     throw new Error("Database connection failed");
   }
-  
-  console.log("✅ Database connection successful");
 }
 
 export const db = drizzle(pool, { schema });

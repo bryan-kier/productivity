@@ -19,8 +19,8 @@ export function useOffline() {
           // Invalidate queries to refetch fresh data
           queryClient.invalidateQueries();
         }
-      } catch (error) {
-        console.error("Failed to flush offline queue:", error);
+      } catch {
+        // Failed to flush offline queue
       }
     };
 

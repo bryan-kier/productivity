@@ -98,7 +98,6 @@ export async function flushOfflineQueue(): Promise<OfflineQueueFlushResult> {
         processed += 1;
       } catch (error) {
         remaining = queue.slice(i);
-        console.error("Failed to replay offline request", operation, error);
         break;
       }
     }

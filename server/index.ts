@@ -8,9 +8,6 @@ import { initializeDatabase } from "./db";
 
 // Validate required environment variables
 if (!process.env.DATABASE_URL) {
-  console.error("❌ ERROR: DATABASE_URL environment variable is required");
-  console.error("   Please set DATABASE_URL to your PostgreSQL connection string");
-  console.error("   Example: postgresql://user:password@localhost:5432/taskflow");
   process.exit(1);
 }
 
@@ -33,15 +30,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
+export function log(_message: string, _source = "express") {
+  // Logging disabled
 }
 
 app.use((req, res, next) => {
@@ -63,7 +53,7 @@ app.use((req, res, next) => {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
-      log(logLine);
+      // Log request
     }
   });
 
@@ -74,8 +64,7 @@ app.use((req, res, next) => {
   // Test database connection before starting the server
   try {
     await initializeDatabase();
-  } catch (error) {
-    console.error("Failed to initialize database:", error);
+  } catch {
     process.exit(1);
   }
   

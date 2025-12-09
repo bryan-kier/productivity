@@ -19,7 +19,6 @@ export default async function handler(
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error("Failed to refresh weekly tasks:", error);
     res.status(500).json({ 
       error: "Failed to refresh weekly tasks",
       details: error instanceof Error ? error.message : String(error)

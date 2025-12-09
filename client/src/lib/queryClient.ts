@@ -50,8 +50,7 @@ if (typeof window !== "undefined") {
     buster: QUERY_PERSISTENCE_BUSTER,
   });
 
-  restorePromise.catch(async (error) => {
-    console.error("Failed to restore cached queries:", error);
+  restorePromise.catch(async () => {
     await persister.removeClient();
     unsubscribe();
   });

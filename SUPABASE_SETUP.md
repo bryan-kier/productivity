@@ -64,21 +64,22 @@ Since the project is already set up with Drizzle, you can push the schema direct
    ```
    This will read `shared/schema.ts` and create the necessary tables in Supabase.
 
-### Option B: Using SQL Editor
-If you prefer to run the SQL manually:
+### Option B: Using SQL Editor (Not Recommended)
+If you need to run SQL manually, you can generate it from the schema:
 
-1. Copy the contents of the `SUPABASE_SCHEMA.sql` file in this repository.
-2. Go to your Supabase project dashboard -> **SQL Editor**.
-3. Paste the SQL and click **Run**.
+1. Use Drizzle Kit to generate SQL migrations: `npx drizzle-kit generate`
+2. Or inspect `shared/schema.ts` to manually create tables
+3. Go to your Supabase project dashboard -> **SQL Editor**
+4. Paste and run the SQL
 
 ## 5. Verify the Connection
 
-We've included a test script to verify everything is working:
+Start the development server to verify the database connection:
 
 ```bash
-npm run test:db
+npm run dev
 ```
 
-If successful, you'll see a green success message and a list of your tables.
+If the database connection is successful, the server will start without errors.
 
 

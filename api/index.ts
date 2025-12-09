@@ -47,8 +47,7 @@ async function getApp(): Promise<express.Express> {
       const { initializeDatabase } = await import("../server/db");
       await initializeDatabase();
       dbInitialized = true;
-    } catch (error) {
-      console.error("Database initialization failed:", error);
+    } catch {
       // Don't throw here - let the health endpoint report the issue
       // Some serverless functions may not need DB access immediately
     }
@@ -78,8 +77,7 @@ export default async function handler(
         }
       });
     });
-  } catch (error) {
-    console.error("API handler error:", error);
+  } catch {
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : String(error)
