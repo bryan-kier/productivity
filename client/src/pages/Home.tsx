@@ -341,14 +341,39 @@ export default function Home() {
       }
       return apiRequest("PATCH", `/api/tasks/${id}`, payload);
     },
+    onMutate: async ({ id, updates }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      
+      // Snapshot the previous value
+      const previousTasks = queryClient.getQueryData<ApiTask[]>(["/api/tasks"]);
+      
+      // Optimistically update to the new value
+      if (previousTasks) {
+        queryClient.setQueryData<ApiTask[]>(["/api/tasks"], previousTasks.map(task => 
+          task.id === id ? { ...task, ...updates } : task
+        ));
+      }
+      
+      // Return a context object with the snapshotted value
+      return { previousTasks };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
+      toast({ title: "Failed to update task", variant: "destructive" });
+    },
     onSuccess: async (response) => {
       const isOffline = response.status === 202;
       if (isOffline) {
         toast({ title: "Update queued for sync", description: "Will be applied when online" });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        toast({ title: "Task updated" });
       }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -360,14 +385,42 @@ export default function Home() {
       }
       return apiRequest("PATCH", `/api/subtasks/${id}`, payload);
     },
+    onMutate: async ({ id, updates }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      
+      // Snapshot the previous value
+      const previousTasks = queryClient.getQueryData<ApiTask[]>(["/api/tasks"]);
+      
+      // Optimistically update the subtask
+      if (previousTasks) {
+        queryClient.setQueryData<ApiTask[]>(["/api/tasks"], previousTasks.map(task => ({
+          ...task,
+          subtasks: task.subtasks.map(subtask =>
+            subtask.id === id ? { ...subtask, ...updates } : subtask
+          )
+        })));
+      }
+      
+      // Return a context object with the snapshotted value
+      return { previousTasks };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
+      toast({ title: "Failed to update subtask", variant: "destructive" });
+    },
     onSuccess: async (response) => {
       const isOffline = response.status === 202;
       if (isOffline) {
         toast({ title: "Update queued for sync", description: "Will be applied when online" });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        toast({ title: "Subtask updated" });
       }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
