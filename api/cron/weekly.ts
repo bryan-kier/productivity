@@ -13,14 +13,19 @@ export default async function handler(
   }
 
   try {
+    // Reset weekly tasks
     await storage.resetWeeklyTasks();
+    
+    // Delete tasks that have been completed for more than a week
+    await storage.deleteOldCompletedTasks();
+    
     res.json({ 
-      message: "Weekly tasks refreshed",
+      message: "Weekly tasks refreshed and old completed tasks cleaned up",
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({ 
-      error: "Failed to refresh weekly tasks",
+      error: "Failed to refresh weekly tasks or clean up completed tasks",
       details: error instanceof Error ? error.message : String(error)
     });
   }

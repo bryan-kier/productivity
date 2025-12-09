@@ -254,6 +254,15 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tasks/cleanup/completed", async (_req, res) => {
+    try {
+      await storage.deleteOldCompletedTasks();
+      res.json({ message: "Old completed tasks deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete old completed tasks" });
+    }
+  });
+
   // === Health Check Endpoint ===
   app.get("/health", async (_req, res) => {
     try {

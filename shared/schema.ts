@@ -41,6 +41,7 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
   refreshType: text("refresh_type").notNull().default("none"), // "none" | "daily" | "weekly"
   categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
   lastRefreshed: timestamp("last_refreshed"),
@@ -82,6 +83,7 @@ export const subtasks = pgTable("subtasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   deadline: timestamp("deadline"),
 });

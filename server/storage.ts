@@ -29,6 +29,7 @@ export interface IStorage {
   deleteTask(id: string): Promise<void>;
   resetDailyTasks(): Promise<void>;
   resetWeeklyTasks(): Promise<void>;
+  deleteOldCompletedTasks(): Promise<void>;
   reorderTasks(taskIds: string[]): Promise<void>;
   
   // Subtasks
@@ -115,6 +116,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed' | 'refreshType' | 'categoryId' | 'lastRefreshed' | 'deadline'>>): Promise<Task | undefined> {
+    // If marking as completed, set completedAt timestamp
+    if (updates.completed === true) {
+      const [existingTask] = await db.select().from(tasks).where(eq(tasks.id, id));
+      if (existingTask && !existingTask.completed) {
+        updates = { ...updates, completedAt: new Date() } as any;
+      }
+    }
+    // If marking as incomplete, clear completedAt timestamp
+    if (updates.completed === false) {
+      updates = { ...updates, completedAt: null } as any;
+    }
     const [task] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
     return task || undefined;
   }
@@ -128,7 +140,7 @@ export class DatabaseStorage implements IStorage {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0);
     
     await db.update(tasks)
-      .set({ completed: false, lastRefreshed: new Date() })
+      .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
       .where(
         and(
           eq(tasks.refreshType, "daily"),
@@ -139,11 +151,24 @@ export class DatabaseStorage implements IStorage {
 
   async resetWeeklyTasks(): Promise<void> {
     await db.update(tasks)
-      .set({ completed: false, lastRefreshed: new Date() })
+      .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
       .where(
         and(
           eq(tasks.refreshType, "weekly"),
           eq(tasks.completed, true)
+        )
+      );
+  }
+
+  async deleteOldCompletedTasks(): Promise<void> {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    await db.delete(tasks)
+      .where(
+        and(
+          eq(tasks.completed, true),
+          lt(tasks.completedAt, oneWeekAgo)
         )
       );
   }
@@ -165,6 +190,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined> {
+    // If marking as completed, set completedAt timestamp
+    if (updates.completed === true) {
+      const [existingSubtask] = await db.select().from(subtasks).where(eq(subtasks.id, id));
+      if (existingSubtask && !existingSubtask.completed) {
+        updates = { ...updates, completedAt: new Date() } as any;
+      }
+    }
+    // If marking as incomplete, clear completedAt timestamp
+    if (updates.completed === false) {
+      updates = { ...updates, completedAt: null } as any;
+    }
     const [subtask] = await db.update(subtasks).set(updates).where(eq(subtasks.id, id)).returning();
     return subtask || undefined;
   }

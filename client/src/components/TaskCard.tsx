@@ -41,9 +41,10 @@ interface TaskCardProps {
   onDelete?: (id: string) => void;
   onEditSubtask?: (subtask: Subtask) => void;
   onDeleteSubtask?: (id: string) => void;
+  dragHandle?: React.ReactNode;
 }
 
-export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask, onEdit, onDelete, onEditSubtask, onDeleteSubtask }: TaskCardProps) {
+export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask, onEdit, onDelete, onEditSubtask, onDeleteSubtask, dragHandle }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.subtasks.length > 0);
 
   const taskDeadline = task.deadline ? (typeof task.deadline === 'string' ? new Date(task.deadline) : task.deadline) : null;
@@ -56,8 +57,9 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
       data-testid={`card-task-${task.id}`}
     >
       <div className="space-y-2">
-        {/* First row: checkbox, chevron/toggle, title, +, 3 dots */}
+        {/* First row: drag handle, checkbox, chevron/toggle, title, +, 3 dots */}
         <div className="flex items-center gap-2 w-full">
+          {dragHandle}
           <Checkbox
             checked={task.completed}
             onCheckedChange={() => onToggle(task.id)}

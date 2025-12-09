@@ -36,9 +36,10 @@ interface NoteCardProps {
   onDelete?: (id: string) => void;
   categories?: Category[];
   onUpdateNote?: (id: string, updates: { title?: string; content?: string; categoryId?: string | null }) => void;
+  dragHandle?: React.ReactNode;
 }
 
-export default function NoteCard({ note, onClick, onEdit, onDelete, categories = [], onUpdateNote }: NoteCardProps) {
+export default function NoteCard({ note, onClick, onEdit, onDelete, categories = [], onUpdateNote, dragHandle }: NoteCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(note.title);
@@ -130,6 +131,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
           }}>
             <FileText className="w-4 h-4 text-primary cursor-pointer" />
           </div>
+          {dragHandle && <div className="mt-2">{dragHandle}</div>}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span 

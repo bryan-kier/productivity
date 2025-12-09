@@ -77,7 +77,7 @@ interface ApiNote {
 }
 
 const STORAGE_KEY = "taskflow-selected-view";
-const VALID_VIEWS = ["inbox", "today", "daily", "weekly"];
+const VALID_VIEWS = ["inbox", "today", "daily", "weekly", "completed"];
 
 function SortableTaskCard({ task, ...props }: { task: Task } & Omit<React.ComponentProps<typeof TaskCard>, 'task'>) {
   const {
@@ -95,20 +95,22 @@ function SortableTaskCard({ task, ...props }: { task: Task } & Omit<React.Compon
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const dragHandle = (
+    <button 
+      type="button"
+      {...attributes} 
+      {...listeners} 
+      className="cursor-grab active:cursor-grabbing p-0.5 shrink-0 -ml-1"
+      aria-label="Drag to reorder"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <GripVertical className="h-4 w-4 text-muted-foreground" />
+    </button>
+  );
+
   return (
-    <div className="flex items-start gap-2">
-      <button 
-        type="button"
-        {...attributes} 
-        {...listeners} 
-        className="cursor-grab active:cursor-grabbing p-1 mt-3 shrink-0"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
-      </button>
-      <div ref={setNodeRef} style={style} className={`flex-1 min-w-0 ${isDragging ? "z-50" : ""}`}>
-        <TaskCard task={task} {...props} />
-      </div>
+    <div ref={setNodeRef} style={style} className={isDragging ? "z-50" : ""}>
+      <TaskCard task={task} {...props} dragHandle={dragHandle} />
     </div>
   );
 }
@@ -129,20 +131,22 @@ function SortableNoteCard({ note, ...props }: { note: Note } & Omit<React.Compon
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const dragHandle = (
+    <button 
+      type="button"
+      {...attributes} 
+      {...listeners} 
+      className="cursor-grab active:cursor-grabbing p-0.5 shrink-0 -ml-1"
+      aria-label="Drag to reorder"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <GripVertical className="h-4 w-4 text-muted-foreground" />
+    </button>
+  );
+
   return (
-    <div className="flex items-start gap-2">
-      <button 
-        type="button"
-        {...attributes} 
-        {...listeners} 
-        className="cursor-grab active:cursor-grabbing p-1 mt-3 shrink-0"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
-      </button>
-      <div ref={setNodeRef} style={style} className={`flex-1 min-w-0 ${isDragging ? "z-50" : ""}`}>
-        <NoteCard note={note} {...props} />
-      </div>
+    <div ref={setNodeRef} style={style} className={isDragging ? "z-50" : ""}>
+      <NoteCard note={note} {...props} dragHandle={dragHandle} />
     </div>
   );
 }
@@ -218,7 +222,8 @@ export default function Home() {
   const categories: Category[] = apiCategories.map(cat => ({
     id: cat.id,
     name: cat.name,
-    taskCount: apiTasks.filter(t => t.categoryId === cat.id).length,
+    taskCount: apiTasks.filter(t => t.categoryId === cat.id && !t.completed).length,
+    noteCount: apiNotes.filter(n => n.categoryId === cat.id).length,
   }));
 
   // Validate saved view when categories load - if it's a category ID that no longer exists, default to "today"
@@ -655,15 +660,23 @@ export default function Home() {
   const getFilteredTasks = () => {
     switch (selectedView) {
       case "inbox":
-        return orderedTasks;
+        // Inbox shows all tasks except completed ones
+        return orderedTasks.filter(t => !t.completed);
       case "today":
-        return orderedTasks.filter(t => t.refreshType === "daily" || !t.completed);
+        // Today shows daily tasks or incomplete tasks
+        return orderedTasks.filter(t => (t.refreshType === "daily" || !t.completed) && !t.completed);
       case "daily":
-        return orderedTasks.filter(t => t.refreshType === "daily");
+        // Daily shows all daily tasks (incomplete ones)
+        return orderedTasks.filter(t => t.refreshType === "daily" && !t.completed);
       case "weekly":
-        return orderedTasks.filter(t => t.refreshType === "weekly");
+        // Weekly shows all weekly tasks (incomplete ones)
+        return orderedTasks.filter(t => t.refreshType === "weekly" && !t.completed);
+      case "completed":
+        // Completed shows only completed tasks
+        return orderedTasks.filter(t => t.completed);
       default:
-        return orderedTasks.filter(t => t.categoryId === selectedView);
+        // Category view shows tasks in that category (incomplete ones)
+        return orderedTasks.filter(t => t.categoryId === selectedView && !t.completed);
     }
   };
 
@@ -680,6 +693,7 @@ export default function Home() {
       case "today": return "Today";
       case "daily": return "Daily Tasks";
       case "weekly": return "Weekly Tasks";
+      case "completed": return "Completed";
       default:
         return categories.find(c => c.id === selectedView)?.name || "Tasks";
     }

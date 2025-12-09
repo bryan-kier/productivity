@@ -24,6 +24,7 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  CheckCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ export interface Category {
   name: string;
   icon?: string;
   taskCount: number;
+  noteCount: number;
 }
 
 interface CategorySidebarProps {
@@ -53,6 +55,7 @@ const defaultViews = [
   { id: "today", name: "Today", icon: Calendar },
   { id: "daily", name: "Daily Tasks", icon: RefreshCw },
   { id: "weekly", name: "Weekly Tasks", icon: RefreshCw },
+  { id: "completed", name: "Completed", icon: CheckCheck },
 ];
 
 export default function CategorySidebar({ 
@@ -124,7 +127,18 @@ export default function CategorySidebar({
                       >
                         <FolderOpen className="w-4 h-4" />
                         <span className="flex-1">{category.name}</span>
-                        <span className="text-xs text-muted-foreground">{category.taskCount}</span>
+                        <div className="flex items-center gap-1">
+                          {category.taskCount > 0 && (
+                            <span className="text-xs font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded" title="Tasks">
+                              {category.taskCount}
+                            </span>
+                          )}
+                          {category.noteCount > 0 && (
+                            <span className="text-xs font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded" title="Notes">
+                              {category.noteCount}
+                            </span>
+                          )}
+                        </div>
                       </SidebarMenuButton>
                       {(onEditCategory || onDeleteCategory) && (
                         <DropdownMenu>
