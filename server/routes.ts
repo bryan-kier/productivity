@@ -263,6 +263,31 @@ export async function registerRoutes(
     }
   });
 
+  // === Announcements ===
+  app.get("/api/announcement", async (_req, res) => {
+    try {
+      const announcement = await storage.getAnnouncement();
+      // Return empty string if no announcement exists
+      res.json({ message: announcement?.message || "", updatedAt: announcement?.updatedAt || null });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch announcement" });
+    }
+  });
+
+  app.put("/api/announcement", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (typeof message !== "string") {
+        return res.status(400).json({ error: "Message must be a string" });
+      }
+      const announcement = await storage.upsertAnnouncement(message);
+      // Return same format as GET endpoint for consistency
+      res.json({ message: announcement.message, updatedAt: announcement.updatedAt });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update announcement" });
+    }
+  });
+
   // === Health Check Endpoint ===
   app.get("/health", async (_req, res) => {
     try {

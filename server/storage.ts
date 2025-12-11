@@ -4,9 +4,10 @@ import {
   tasks, type Task, type InsertTask,
   subtasks, type Subtask, type InsertSubtask,
   notes, type Note, type InsertNote,
+  announcements, type Announcement, type InsertAnnouncement,
 } from "../shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, lt, asc, inArray } from "drizzle-orm";
+import { eq, and, lt, asc, inArray, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -45,6 +46,10 @@ export interface IStorage {
   updateNote(id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'categoryId'>>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<void>;
   reorderNotes(noteIds: string[]): Promise<void>;
+  
+  // Announcements
+  getAnnouncement(): Promise<Announcement | undefined>;
+  upsertAnnouncement(message: string): Promise<Announcement>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -260,6 +265,32 @@ export class DatabaseStorage implements IStorage {
   async reorderNotes(noteIds: string[]): Promise<void> {
     for (let i = 0; i < noteIds.length; i++) {
       await db.update(notes).set({ order: i }).where(eq(notes.id, noteIds[i]));
+    }
+  }
+
+  // Announcements
+  async getAnnouncement(): Promise<Announcement | undefined> {
+    // Get the most recent announcement (there should only be one, but just in case)
+    const [announcement] = await db.select().from(announcements).orderBy(desc(announcements.updatedAt)).limit(1);
+    return announcement || undefined;
+  }
+
+  async upsertAnnouncement(message: string): Promise<Announcement> {
+    // Check if an announcement exists
+    const existing = await this.getAnnouncement();
+    
+    if (existing) {
+      // Update existing announcement
+      const [updated] = await db
+        .update(announcements)
+        .set({ message, updatedAt: new Date() })
+        .where(eq(announcements.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new announcement
+      const [created] = await db.insert(announcements).values({ message }).returning();
+      return created;
     }
   }
 }

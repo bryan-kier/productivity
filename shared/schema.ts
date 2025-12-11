@@ -139,3 +139,17 @@ export const insertNoteSchema = createInsertSchema(notes).pick({
 
 export type InsertNote = z.infer<typeof insertNoteSchema>;
 export type Note = typeof notes.$inferSelect;
+
+// Announcements table (for daily tone-setting messages)
+export const announcements = pgTable("announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  message: text("message").notNull().default(""),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertAnnouncementSchema = createInsertSchema(announcements).pick({
+  message: true,
+});
+
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type Announcement = typeof announcements.$inferSelect;

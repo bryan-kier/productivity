@@ -13,6 +13,7 @@ import CreateCategoryDialog from "@/components/CreateCategoryDialog";
 import EditCategoryDialog from "@/components/EditCategoryDialog";
 import CreateSubtaskDialog from "@/components/CreateSubtaskDialog";
 import EditSubtaskDialog from "@/components/EditSubtaskDialog";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1024,6 +1025,8 @@ export default function Home() {
               </Button>
             </div>
           </header>
+          
+          <AnnouncementBanner />
           
           <div 
             ref={scrollContainerRef}
