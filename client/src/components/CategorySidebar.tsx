@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -66,6 +67,8 @@ export default function CategorySidebar({
   onEditCategory,
   onDeleteCategory,
 }: CategorySidebarProps) {
+  const [, setLocation] = useLocation();
+  
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
@@ -192,7 +195,12 @@ export default function CategorySidebar({
       </SidebarContent>
       
       <SidebarFooter className="p-4">
-        <Button variant="ghost" className="w-full justify-start" data-testid="button-settings">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start" 
+          data-testid="button-settings"
+          onClick={() => setLocation("/settings")}
+        >
           <Settings className="w-4 h-4 mr-2" />
           Settings
         </Button>

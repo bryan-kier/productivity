@@ -10,7 +10,7 @@ export default defineConfig({
     runtimeErrorOverlay(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "favicon.svg", "pwa-192x192.png", "pwa-512x512.png"],
+      includeAssets: ["favicon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         name: "Task-Flow",
         short_name: "TaskFlow",
@@ -31,16 +31,6 @@ export default defineConfig({
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
-          },
-          {
-            src: "pwa-192x192.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-          },
-          {
-            src: "pwa-512x512.svg",
-            sizes: "any",
-            type: "image/svg+xml",
           },
         ],
       },

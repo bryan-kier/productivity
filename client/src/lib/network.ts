@@ -18,10 +18,17 @@ export async function sendHttpRequest({
   body,
   headers,
 }: SendHttpRequestOptions) {
+  // Get auth token from Supabase session
+  const { supabase } = await import("./supabase");
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const payload = body ? JSON.stringify(body) : undefined;
-  const mergedHeaders = body
-    ? { "Content-Type": "application/json", ...headers }
-    : headers;
+  const mergedHeaders: Record<string, string> = {
+    ...(body && { "Content-Type": "application/json" }),
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...headers,
+  };
 
   const res = await fetch(url, {
     method,

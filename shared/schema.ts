@@ -3,25 +3,11 @@ import { pgTable, text, varchar, boolean, timestamp, integer } from "drizzle-orm
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table (existing)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
 // Categories table
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  userId: varchar("user_id").notNull(), // Supabase user ID
 });
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -31,6 +17,7 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 
 export const insertCategorySchema = createInsertSchema(categories).pick({
   name: true,
+  userId: true,
 });
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
@@ -47,6 +34,7 @@ export const tasks = pgTable("tasks", {
   lastRefreshed: timestamp("last_refreshed"),
   deadline: timestamp("deadline"),
   order: integer("order").default(0),
+  userId: varchar("user_id").notNull(), // Supabase user ID
 });
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -61,6 +49,7 @@ const baseTaskSchema = createInsertSchema(tasks).pick({
   title: true,
   refreshType: true,
   categoryId: true,
+  userId: true,
 });
 
 export const insertTaskSchema = baseTaskSchema.extend({
@@ -122,6 +111,7 @@ export const notes = pgTable("notes", {
   content: text("content").notNull().default(""),
   categoryId: varchar("category_id").references(() => categories.id, { onDelete: "set null" }),
   order: integer("order").default(0),
+  userId: varchar("user_id").notNull(), // Supabase user ID
 });
 
 export const notesRelations = relations(notes, ({ one }) => ({
@@ -135,6 +125,7 @@ export const insertNoteSchema = createInsertSchema(notes).pick({
   title: true,
   content: true,
   categoryId: true,
+  userId: true,
 });
 
 export type InsertNote = z.infer<typeof insertNoteSchema>;
@@ -145,10 +136,12 @@ export const announcements = pgTable("announcements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   message: text("message").notNull().default(""),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+  userId: varchar("user_id").notNull(), // Supabase user ID
 });
 
 export const insertAnnouncementSchema = createInsertSchema(announcements).pick({
   message: true,
+  userId: true,
 });
 
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;

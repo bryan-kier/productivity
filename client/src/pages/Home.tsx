@@ -28,6 +28,7 @@ import { Calendar, RefreshCw, FileText, Loader2, ArrowDown, GripVertical } from 
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DndContext,
   closestCenter,
@@ -215,6 +216,7 @@ export default function Home() {
   const [localTaskOrder, setLocalTaskOrder] = useState<string[]>([]);
   const [localNoteOrder, setLocalNoteOrder] = useState<string[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Save selected view to localStorage whenever it changes
   useEffect(() => {

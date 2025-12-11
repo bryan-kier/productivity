@@ -1,18 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage.js";
-import { insertCategorySchema, insertTaskSchema, insertSubtaskSchema, insertNoteSchema } from "../shared/schema.js";
+import { storage } from "../server/storage.js";
+import { insertCategorySchema, insertTaskSchema, insertSubtaskSchema, insertNoteSchema, insertAnnouncementSchema } from "../shared/schema.js";
 import { z } from "zod";
+import { authenticateUser } from "../server/middleware/auth.js";
 
 export async function registerRoutes(
   httpServer: Server | null,
   app: Express
 ): Promise<Server | null> {
   
+  // Apply authentication middleware to all API routes except health check
+  app.use("/api", authenticateUser);
+  
   // === Categories ===
-  app.get("/api/categories", async (_req, res) => {
+  app.get("/api/categories", async (req, res) => {
     try {
-      const categories = await storage.getCategories();
+      const userId = req.user!.id;
+      const categories = await storage.getCategories(userId);
       res.json(categories);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch categories" });
@@ -21,7 +26,8 @@ export async function registerRoutes(
 
   app.post("/api/categories", async (req, res) => {
     try {
-      const parsed = insertCategorySchema.parse(req.body);
+      const userId = req.user!.id;
+      const parsed = insertCategorySchema.parse({ ...req.body, userId });
       const category = await storage.createCategory(parsed);
       res.status(201).json(category);
     } catch (error) {
@@ -35,11 +41,12 @@ export async function registerRoutes(
 
   app.patch("/api/categories/:id", async (req, res) => {
     try {
+      const userId = req.user!.id;
       const { name } = req.body;
       if (!name || typeof name !== "string") {
         return res.status(400).json({ error: "Name is required" });
       }
-      const category = await storage.updateCategory(req.params.id, name);
+      const category = await storage.updateCategory(req.params.id, name, userId);
       if (!category) {
         return res.status(404).json({ error: "Category not found" });
       }
@@ -51,7 +58,8 @@ export async function registerRoutes(
 
   app.delete("/api/categories/:id", async (req, res) => {
     try {
-      await storage.deleteCategory(req.params.id);
+      const userId = req.user!.id;
+      await storage.deleteCategory(req.params.id, userId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete category" });
@@ -59,9 +67,10 @@ export async function registerRoutes(
   });
 
   // === Tasks ===
-  app.get("/api/tasks", async (_req, res) => {
+  app.get("/api/tasks", async (req, res) => {
     try {
-      const tasks = await storage.getTasks();
+      const userId = req.user!.id;
+      const tasks = await storage.getTasks(userId);
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ 
@@ -73,56 +82,65 @@ export async function registerRoutes(
 
   app.post("/api/tasks", async (req, res) => {
     try {
-      const parsed = insertTaskSchema.parse(req.body);
+      const userId = req.user!.id;
+      const parsed = insertTaskSchema.parse({ ...req.body, userId });
       const task = await storage.createTask(parsed);
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to create task" });
+        res.status(500).json({ error: "Failed to create task", details: error instanceof Error ? error.message : String(error) });
       }
     }
   });
 
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
-      const task = await storage.updateTask(req.params.id, req.body);
+      const userId = req.user!.id;
+      const updates: any = { ...req.body };
+      // Convert deadline ISO string to Date object if present
+      if (updates.deadline !== undefined) {
+        if (updates.deadline === null || updates.deadline === "") {
+          updates.deadline = null;
+        } else if (typeof updates.deadline === "string") {
+          const date = new Date(updates.deadline);
+          if (isNaN(date.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date format" });
+          }
+          updates.deadline = date;
+        } else if (updates.deadline instanceof Date) {
+          // Already a Date object, use as is
+          if (isNaN(updates.deadline.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date" });
+          }
+        }
+      }
+      const task = await storage.updateTask(req.params.id, updates, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
       res.json(task);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update task" });
+      res.status(500).json({ error: "Failed to update task", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
-      await storage.deleteTask(req.params.id);
+      const userId = req.user!.id;
+      await storage.deleteTask(req.params.id, userId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete task" });
     }
   });
 
-  app.post("/api/tasks/reorder", async (req, res) => {
-    try {
-      const { taskIds } = req.body;
-      if (!Array.isArray(taskIds) || taskIds.length === 0) {
-        return res.status(400).json({ error: "taskIds array is required" });
-      }
-      await storage.reorderTasks(taskIds);
-      res.json({ message: "Tasks reordered successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder tasks" });
-    }
-  });
-
   // === Subtasks ===
   app.get("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
-      const subtasks = await storage.getSubtasks(req.params.taskId);
+      const userId = req.user!.id;
+      const subtasks = await storage.getSubtasks(req.params.taskId, userId);
       res.json(subtasks);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch subtasks" });
@@ -131,33 +149,54 @@ export async function registerRoutes(
 
   app.post("/api/subtasks", async (req, res) => {
     try {
+      const userId = req.user!.id;
       const parsed = insertSubtaskSchema.parse(req.body);
-      const subtask = await storage.createSubtask(parsed);
+      const subtask = await storage.createSubtask(parsed, userId);
       res.status(201).json(subtask);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to create subtask" });
+        res.status(500).json({ error: "Failed to create subtask", details: error instanceof Error ? error.message : String(error) });
       }
     }
   });
 
   app.patch("/api/subtasks/:id", async (req, res) => {
     try {
-      const subtask = await storage.updateSubtask(req.params.id, req.body);
+      const userId = req.user!.id;
+      const updates: any = { ...req.body };
+      // Convert deadline ISO string to Date object if present
+      if (updates.deadline !== undefined) {
+        if (updates.deadline === null || updates.deadline === "") {
+          updates.deadline = null;
+        } else if (typeof updates.deadline === "string") {
+          const date = new Date(updates.deadline);
+          if (isNaN(date.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date format" });
+          }
+          updates.deadline = date;
+        } else if (updates.deadline instanceof Date) {
+          // Already a Date object, use as is
+          if (isNaN(updates.deadline.getTime())) {
+            return res.status(400).json({ error: "Invalid deadline date" });
+          }
+        }
+      }
+      const subtask = await storage.updateSubtask(req.params.id, updates, userId);
       if (!subtask) {
         return res.status(404).json({ error: "Subtask not found" });
       }
       res.json(subtask);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update subtask" });
+      res.status(500).json({ error: "Failed to update subtask", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
   app.delete("/api/subtasks/:id", async (req, res) => {
     try {
-      await storage.deleteSubtask(req.params.id);
+      const userId = req.user!.id;
+      await storage.deleteSubtask(req.params.id, userId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete subtask" });
@@ -165,9 +204,10 @@ export async function registerRoutes(
   });
 
   // === Notes ===
-  app.get("/api/notes", async (_req, res) => {
+  app.get("/api/notes", async (req, res) => {
     try {
-      const notes = await storage.getNotes();
+      const userId = req.user!.id;
+      const notes = await storage.getNotes(userId);
       res.json(notes);
     } catch (error) {
       res.status(500).json({ 
@@ -179,7 +219,8 @@ export async function registerRoutes(
 
   app.post("/api/notes", async (req, res) => {
     try {
-      const parsed = insertNoteSchema.parse(req.body);
+      const userId = req.user!.id;
+      const parsed = insertNoteSchema.parse({ ...req.body, userId });
       const note = await storage.createNote(parsed);
       res.status(201).json(note);
     } catch (error) {
@@ -193,7 +234,8 @@ export async function registerRoutes(
 
   app.patch("/api/notes/:id", async (req, res) => {
     try {
-      const note = await storage.updateNote(req.params.id, req.body);
+      const userId = req.user!.id;
+      const note = await storage.updateNote(req.params.id, req.body, userId);
       if (!note) {
         return res.status(404).json({ error: "Note not found" });
       }
@@ -205,52 +247,107 @@ export async function registerRoutes(
 
   app.delete("/api/notes/:id", async (req, res) => {
     try {
-      await storage.deleteNote(req.params.id);
+      const userId = req.user!.id;
+      await storage.deleteNote(req.params.id, userId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete note" });
     }
   });
 
-  app.post("/api/notes/reorder", async (req, res) => {
-    try {
-      const { noteIds } = req.body;
-      if (!Array.isArray(noteIds) || noteIds.length === 0) {
-        return res.status(400).json({ error: "noteIds array is required" });
-      }
-      await storage.reorderNotes(noteIds);
-      res.json({ message: "Notes reordered successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder notes" });
-    }
-  });
-
   // === Task Refresh Endpoints (for manual trigger or cron) ===
-  app.post("/api/tasks/refresh/daily", async (_req, res) => {
+  app.post("/api/tasks/refresh/daily", async (req, res) => {
     try {
-      await storage.resetDailyTasks();
+      const userId = req.user!.id;
+      await storage.resetDailyTasks(userId);
       res.json({ message: "Daily tasks refreshed" });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh daily tasks" });
     }
   });
 
-  app.post("/api/tasks/refresh/weekly", async (_req, res) => {
+  app.post("/api/tasks/refresh/weekly", async (req, res) => {
     try {
-      await storage.resetWeeklyTasks();
+      const userId = req.user!.id;
+      await storage.resetWeeklyTasks(userId);
       res.json({ message: "Weekly tasks refreshed" });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh weekly tasks" });
     }
   });
 
+  app.post("/api/tasks/cleanup/completed", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      await storage.deleteOldCompletedTasks(userId);
+      res.json({ message: "Old completed tasks deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete old completed tasks" });
+    }
+  });
+
+  // === Announcements ===
+  app.get("/api/announcement", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const announcement = await storage.getAnnouncement(userId);
+      // Return empty string if no announcement exists
+      res.json({ message: announcement?.message || "", updatedAt: announcement?.updatedAt || null });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch announcement" });
+    }
+  });
+
+  app.put("/api/announcement", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { message } = req.body;
+      if (typeof message !== "string") {
+        return res.status(400).json({ error: "Message must be a string" });
+      }
+      const announcement = await storage.upsertAnnouncement(message, userId);
+      // Return same format as GET endpoint for consistency
+      res.json({ message: announcement.message, updatedAt: announcement.updatedAt });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update announcement" });
+    }
+  });
+
   // === Health Check Endpoint ===
-  app.get("/health", (_req, res) => {
-    res.json({ 
-      status: "ok", 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+  app.get("/health", async (_req, res) => {
+    try {
+      // Test database connection
+      const { testConnection } = await import("../server/db");
+      const dbConnected = await testConnection();
+      
+      const health = {
+        status: dbConnected ? "ok" : "degraded",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: {
+          connected: dbConnected,
+          status: dbConnected ? "healthy" : "disconnected"
+        }
+      };
+      
+      res.status(dbConnected ? 200 : 503).json(health);
+    } catch (error) {
+      res.status(503).json({
+        status: "error",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: {
+          connected: false,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    }
+  });
+
+  // === 404 Handler for API routes ===
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ error: "API endpoint not found", path: req.path });
   });
 
   return httpServer;
