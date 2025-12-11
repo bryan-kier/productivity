@@ -45,6 +45,11 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface ApiCategory {
   id: string;
@@ -78,6 +83,7 @@ interface ApiNote {
 }
 
 const STORAGE_KEY = "taskflow-selected-view";
+const PANEL_SIZE_STORAGE_KEY = "taskflow-panel-sizes";
 const VALID_VIEWS = ["inbox", "today", "daily", "weekly", "completed"];
 
 function SortableTaskCard({ task, ...props }: { task: Task } & Omit<React.ComponentProps<typeof TaskCard>, 'task'>) {
@@ -182,6 +188,24 @@ export default function Home() {
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
   const [editCategoryOpen, setEditCategoryOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // Panel sizes (default: 60% tasks, 40% notes)
+  const [panelSizes, setPanelSizes] = useState<number[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(PANEL_SIZE_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === 2) {
+            return parsed;
+          }
+        }
+      } catch (error) {
+        // Failed to load saved sizes
+      }
+    }
+    return [60, 40];
+  });
   const [createSubtaskOpen, setCreateSubtaskOpen] = useState(false);
   const [createSubtaskTaskId, setCreateSubtaskTaskId] = useState<string>("");
   const [editSubtaskOpen, setEditSubtaskOpen] = useState(false);
@@ -236,6 +260,17 @@ export default function Home() {
       }
     }
   }, [categoriesLoading, categories, selectedView]);
+  
+  // Save panel sizes to localStorage when they change
+  useEffect(() => {
+    if (typeof window !== "undefined" && panelSizes.length === 2) {
+      try {
+        localStorage.setItem(PANEL_SIZE_STORAGE_KEY, JSON.stringify(panelSizes));
+      } catch (error) {
+        // Failed to save panel sizes
+      }
+    }
+  }, [panelSizes]);
 
   const tasks: Task[] = apiTasks.map(task => ({
     id: task.id,
@@ -1034,7 +1069,7 @@ export default function Home() {
           
           <div 
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto relative"
+            className="flex-1 overflow-hidden relative flex flex-col"
             style={{
               transform: isPulling || isRefreshing ? `translateY(${Math.min(pullDistance, PULL_THRESHOLD)}px)` : 'translateY(0)',
               transition: isPulling || isRefreshing ? 'none' : 'transform 0.3s ease-out',
@@ -1075,78 +1110,105 @@ export default function Home() {
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="flex flex-col lg:flex-row">
-                <div className="flex-1 min-w-0 lg:w-3/5">
-                  <div className="p-6 space-y-4">
-                    {filteredTasks.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">No tasks yet. Create one to get started!</p>
-                      </div>
-                    ) : (
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={(e) => handleDragEnd(e, 'tasks')}
-                      >
-                        <SortableContext
-                          items={filteredTasks.map((t) => t.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <div className="space-y-3">
-                            {filteredTasks.map(task => (
-                              <SortableTaskCard
-                                key={task.id}
-                                task={task}
-                                onToggle={handleToggleTask}
-                                onToggleSubtask={handleToggleSubtask}
-                                onAddSubtask={handleAddSubtask}
-                                onEdit={handleEditTask}
-                                onDelete={handleDeleteTask}
-                                onEditSubtask={handleEditSubtask}
-                                onDeleteSubtask={handleDeleteSubtask}
-                              />
-                            ))}
+              <div className="flex-1 min-h-0">
+                <ResizablePanelGroup
+                  direction="horizontal"
+                  className="h-full"
+                  onLayout={(sizes) => {
+                    if (sizes.length === 2) {
+                      setPanelSizes(sizes);
+                    }
+                  }}
+                >
+                  <ResizablePanel
+                    size={panelSizes[0]}
+                    minSize={30}
+                    className="min-w-0"
+                  >
+                    <div className="h-full overflow-y-auto">
+                      <div className="p-6 space-y-4">
+                        {filteredTasks.length === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-muted-foreground">No tasks yet. Create one to get started!</p>
                           </div>
-                        </SortableContext>
-                      </DndContext>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="lg:w-2/5 border-t lg:border-t-0 lg:border-l border-border">
-                  <div className="p-6 space-y-4">
-                    {filteredNotes.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">No notes yet. Create one to capture your thoughts!</p>
+                        ) : (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={(e) => handleDragEnd(e, 'tasks')}
+                          >
+                            <SortableContext
+                              items={filteredTasks.map((t) => t.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="space-y-3">
+                                {filteredTasks.map(task => (
+                                  <SortableTaskCard
+                                    key={task.id}
+                                    task={task}
+                                    onToggle={handleToggleTask}
+                                    onToggleSubtask={handleToggleSubtask}
+                                    onAddSubtask={handleAddSubtask}
+                                    onEdit={handleEditTask}
+                                    onDelete={handleDeleteTask}
+                                    onEditSubtask={handleEditSubtask}
+                                    onDeleteSubtask={handleDeleteSubtask}
+                                  />
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                        )}
                       </div>
-                    ) : (
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={(e) => handleDragEnd(e, 'notes')}
-                      >
-                        <SortableContext
-                          items={filteredNotes.map((n) => n.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <div className="space-y-3">
-                            {filteredNotes.map(note => (
-                              <SortableNoteCard
-                                key={note.id}
-                                note={note}
-                                onClick={() => {}}
-                                onEdit={handleEditNote}
-                                onDelete={handleDeleteNote}
-                                categories={categories}
-                                onUpdateNote={handleUpdateNote}
-                              />
-                            ))}
+                    </div>
+                  </ResizablePanel>
+                  
+                  <ResizableHandle 
+                    withHandle 
+                    className="bg-border hover:bg-border/80 transition-colors cursor-col-resize"
+                  />
+                  
+                  <ResizablePanel
+                    size={panelSizes[1]}
+                    minSize={30}
+                    className="min-w-0"
+                  >
+                    <div className="h-full overflow-y-auto border-l border-border">
+                      <div className="p-6 space-y-4">
+                        {filteredNotes.length === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-muted-foreground">No notes yet. Create one to capture your thoughts!</p>
                           </div>
-                        </SortableContext>
-                      </DndContext>
-                    )}
-                  </div>
-                </div>
+                        ) : (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={(e) => handleDragEnd(e, 'notes')}
+                          >
+                            <SortableContext
+                              items={filteredNotes.map((n) => n.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="space-y-3">
+                                {filteredNotes.map(note => (
+                                  <SortableNoteCard
+                                    key={note.id}
+                                    note={note}
+                                    onClick={() => {}}
+                                    onEdit={handleEditNote}
+                                    onDelete={handleDeleteNote}
+                                    categories={categories}
+                                    onUpdateNote={handleUpdateNote}
+                                  />
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                        )}
+                      </div>
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               </div>
             )}
           </div>
