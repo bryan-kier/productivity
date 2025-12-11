@@ -125,13 +125,13 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
         onClick={handleClick}
       >
         <div className="flex items-start gap-3">
+          {dragHandle && <div className="mt-2">{dragHandle}</div>}
           <div className="p-2 rounded-lg bg-primary/10" onClick={(e) => {
             e.stopPropagation();
             onClick?.(note);
           }}>
             <FileText className="w-4 h-4 text-primary cursor-pointer" />
           </div>
-          {dragHandle && <div className="mt-2">{dragHandle}</div>}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span 

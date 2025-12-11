@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Edit2, Check, X } from "lucide-react";
+import { Megaphone, Edit2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,7 +93,7 @@ export default function AnnouncementBanner() {
             onClick={handleStartEdit}
             className="flex items-center gap-2 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Sparkles className="w-4 h-4" />
+            <Megaphone className="w-4 h-4" />
             <span>Click to set tomorrow's tone...</span>
           </button>
         </div>
@@ -107,7 +107,7 @@ export default function AnnouncementBanner() {
         {isEditing ? (
           <div className="space-y-2">
             <div className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 mt-1.5 text-primary flex-shrink-0" />
+              <Megaphone className="w-4 h-4 mt-1.5 text-primary flex-shrink-0" />
               <Textarea
                 ref={textareaRef}
                 value={editValue}
@@ -157,7 +157,7 @@ export default function AnnouncementBanner() {
           </div>
         ) : (
           <div className="flex items-start gap-3 group">
-            <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+            <Megaphone className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap break-words">
                 {announcement?.message || ""}

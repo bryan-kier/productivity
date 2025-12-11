@@ -69,7 +69,7 @@ export default function EditTaskDialog({
     onUpdateTask(task.id, {
       title: title.trim(),
       refreshType,
-      categoryId: categoryId && categoryId !== "none" ? categoryId : undefined,
+      categoryId: categoryId && categoryId !== "none" ? categoryId : null,
       deadline: deadline || null,
     });
     

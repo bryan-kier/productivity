@@ -335,10 +335,14 @@ export default function Home() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: { completed?: boolean; title?: string; refreshType?: RefreshType; categoryId?: string; deadline?: Date | null } }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: { completed?: boolean; title?: string; refreshType?: RefreshType; categoryId?: string | null; deadline?: Date | null } }) => {
       const payload: any = { ...updates };
       if (updates.deadline !== undefined) {
         payload.deadline = updates.deadline ? updates.deadline.toISOString() : null;
+      }
+      // Ensure categoryId is explicitly null when clearing (not undefined)
+      if (updates.categoryId === null || updates.categoryId === undefined) {
+        payload.categoryId = null;
       }
       return apiRequest("PATCH", `/api/tasks/${id}`, payload);
     },
@@ -592,7 +596,7 @@ export default function Home() {
     setEditTaskOpen(true);
   };
 
-  const handleUpdateTask = (id: string, updates: { title?: string; refreshType?: RefreshType; categoryId?: string; deadline?: Date | null }) => {
+  const handleUpdateTask = (id: string, updates: { title?: string; refreshType?: RefreshType; categoryId?: string | null; deadline?: Date | null }) => {
     updateTaskMutation.mutate({ id, updates });
   };
 
