@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   CheckSquare, 
-  Inbox, 
+  FileText, 
   Calendar, 
   RefreshCw, 
   FolderOpen, 
@@ -52,7 +52,7 @@ interface CategorySidebarProps {
 }
 
 const defaultViews = [
-  { id: "inbox", name: "Inbox", icon: Inbox },
+  { id: "notes", name: "Notes", icon: FileText },
   { id: "today", name: "Today", icon: Calendar },
   { id: "daily", name: "Daily Tasks", icon: RefreshCw },
   { id: "weekly", name: "Weekly Tasks", icon: RefreshCw },

@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DndContext,
   closestCenter,
@@ -85,7 +86,7 @@ interface ApiNote {
 
 const STORAGE_KEY = "taskflow-selected-view";
 const PANEL_SIZE_STORAGE_KEY = "taskflow-panel-sizes";
-const VALID_VIEWS = ["inbox", "today", "daily", "weekly", "completed"];
+const VALID_VIEWS = ["notes", "today", "daily", "weekly", "completed"];
 
 function SortableTaskCard({ task, ...props }: { task: Task } & Omit<React.ComponentProps<typeof TaskCard>, 'task'>) {
   const {
@@ -217,6 +218,7 @@ export default function Home() {
   const [localNoteOrder, setLocalNoteOrder] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   // Save selected view to localStorage whenever it changes
   useEffect(() => {
@@ -530,7 +532,7 @@ export default function Home() {
         queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
         toast({ title: "Category deleted" });
         if (selectedView === id) {
-          setSelectedView("inbox");
+          setSelectedView("today");
         }
       }
     },
@@ -754,9 +756,9 @@ export default function Home() {
 
   const getFilteredTasks = () => {
     switch (selectedView) {
-      case "inbox":
-        // Inbox shows all tasks except completed ones
-        return orderedTasks.filter(t => !t.completed);
+      case "notes":
+        // Notes view shows no tasks
+        return [];
       case "today":
         // Today shows daily tasks or incomplete tasks
         return orderedTasks.filter(t => (t.refreshType === "daily" || !t.completed) && !t.completed);
@@ -776,7 +778,11 @@ export default function Home() {
   };
 
   const getFilteredNotes = () => {
-    if (selectedView === "inbox" || selectedView === "today" || selectedView === "daily" || selectedView === "weekly") {
+    if (selectedView === "notes") {
+      // Notes view shows all notes
+      return orderedNotes;
+    }
+    if (selectedView === "today" || selectedView === "daily" || selectedView === "weekly") {
       return orderedNotes;
     }
     return orderedNotes.filter(n => n.categoryId === selectedView);
@@ -784,7 +790,7 @@ export default function Home() {
 
   const getViewTitle = () => {
     switch (selectedView) {
-      case "inbox": return "Inbox";
+      case "notes": return "Notes";
       case "today": return "Today";
       case "daily": return "Daily Tasks";
       case "weekly": return "Weekly Tasks";
@@ -1110,6 +1116,70 @@ export default function Home() {
             {isLoading ? (
               <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : isMobile ? (
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  {filteredTasks.length === 0 && filteredNotes.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">No tasks or notes yet. Create one to get started!</p>
+                    </div>
+                  ) : (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(e) => {
+                        // Determine if it's a task or note based on the active id
+                        const isTask = filteredTasks.some(t => t.id === e.active.id);
+                        handleDragEnd(e, isTask ? 'tasks' : 'notes');
+                      }}
+                    >
+                      {filteredTasks.length > 0 && (
+                        <SortableContext
+                          items={filteredTasks.map((t) => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-3">
+                            {filteredTasks.map(task => (
+                              <SortableTaskCard
+                                key={task.id}
+                                task={task}
+                                onToggle={handleToggleTask}
+                                onToggleSubtask={handleToggleSubtask}
+                                onAddSubtask={handleAddSubtask}
+                                onEdit={handleEditTask}
+                                onDelete={handleDeleteTask}
+                                onEditSubtask={handleEditSubtask}
+                                onDeleteSubtask={handleDeleteSubtask}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      )}
+                      
+                      {filteredNotes.length > 0 && (
+                        <SortableContext
+                          items={filteredNotes.map((n) => n.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-3">
+                            {filteredNotes.map(note => (
+                              <SortableNoteCard
+                                key={note.id}
+                                note={note}
+                                onClick={() => {}}
+                                onEdit={handleEditNote}
+                                onDelete={handleDeleteNote}
+                                categories={categories}
+                                onUpdateNote={handleUpdateNote}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      )}
+                    </DndContext>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex-1 min-h-0">

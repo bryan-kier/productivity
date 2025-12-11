@@ -48,3 +48,4 @@ export async function authenticateUser(
     res.status(401).json({ error: 'Unauthorized: Authentication failed' });
   }
 }
+
