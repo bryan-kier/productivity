@@ -20,15 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c5e65bbc-2508-49ba-9666-5872d0495869',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:23',message:'AuthProvider initialized',data:{href:typeof window !== 'undefined' ? window.location.href : 'SSR',hash:typeof window !== 'undefined' ? window.location.hash : 'SSR'},timestamp:Date.now(),sessionId:'debug-session',runId:'oauth-debug',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c5e65bbc-2508-49ba-9666-5872d0495869',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:28',message:'Initial session loaded',data:{hasSession:!!session,userId:session?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'oauth-debug',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -38,9 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c5e65bbc-2508-49ba-9666-5872d0495869',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:37',message:'Auth state changed',data:{event,hasSession:!!session,userId:session?.user?.id,href:typeof window !== 'undefined' ? window.location.href : 'SSR'},timestamp:Date.now(),sessionId:'debug-session',runId:'oauth-debug',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -79,10 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c5e65bbc-2508-49ba-9666-5872d0495869',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:72',message:'OAuth response received',data:{hasData:!!data,hasError:!!error,error:error?.message,url:data?.url,redirectUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'oauth-debug',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     
     if (error) {
       throw error;
