@@ -24,3 +24,4 @@ export const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey, 
   },
 });
 
+
