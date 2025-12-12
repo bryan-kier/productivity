@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { supabaseClient } from '../lib/supabase.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 // Extend Express Request to include user
 declare global {
@@ -12,6 +12,17 @@ declare global {
     }
   }
 }
+
+// Get Supabase URL from environment
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+if (!supabaseUrl) {
+  throw new Error('Missing VITE_SUPABASE_URL environment variable');
+}
+
+// Create JWKS client (caches keys automatically)
+const JWKS = createRemoteJWKSet(
+  new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`)
+);
 
 export async function authenticateUser(
   req: Request,
@@ -28,25 +39,40 @@ export async function authenticateUser(
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    // Verify the JWT token with Supabase
-    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+    // Verify the JWT token locally (no network call)
+    try {
+      const { payload } = await jwtVerify(token, JWKS, {
+        issuer: `${supabaseUrl}/auth/v1`,
+      });
 
-    if (error || !user) {
+      // Check if token is expired
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        res.status(401).json({ error: 'Unauthorized: Token expired' });
+        return;
+      }
+
+      // Extract user info from JWT payload
+      const userId = payload.sub;
+      if (!userId || typeof userId !== 'string') {
+        res.status(401).json({ error: 'Unauthorized: Invalid token payload' });
+        return;
+      }
+
+      // Attach user to request object
+      req.user = {
+        id: userId,
+        email: payload.email as string | undefined,
+      };
+
+      next();
+    } catch (jwtError) {
+      // JWT verification failed (invalid signature, expired, etc.)
       res.status(401).json({ error: 'Unauthorized: Invalid token' });
       return;
     }
-
-    // Attach user to request object
-    req.user = {
-      id: user.id,
-      email: user.email,
-    };
-
-    next();
   } catch (error) {
     console.error('Authentication error:', error);
     res.status(401).json({ error: 'Unauthorized: Authentication failed' });
   }
 }
-
-
