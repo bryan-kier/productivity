@@ -47,6 +47,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
   const [editCategoryId, setEditCategoryId] = useState<string>(note.categoryId || "");
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Reset edit state when note changes or dialog closes
   useEffect(() => {
@@ -58,7 +59,24 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
     }
   }, [note, isExpanded]);
 
+  // Check if the event target is within the drag handle
+  const isDragHandleEvent = (e: React.MouseEvent | React.TouchEvent): boolean => {
+    const target = e.target as HTMLElement;
+    if (!target || !cardRef.current) return false;
+    
+    // Check if the target or its parent is the drag handle
+    const dragHandleElement = cardRef.current.querySelector('[aria-label="Drag to reorder"]');
+    if (!dragHandleElement) return false;
+    
+    return dragHandleElement.contains(target) || dragHandleElement === target;
+  };
+
   const handleLongPressStart = (e: React.MouseEvent | React.TouchEvent) => {
+    // Don't start long press if the event is from the drag handle
+    if (isDragHandleEvent(e)) {
+      return;
+    }
+    
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
@@ -67,6 +85,11 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
   };
 
   const handleLongPressEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    // Don't handle long press end if the event is from the drag handle
+    if (isDragHandleEvent(e)) {
+      return;
+    }
+    
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -79,6 +102,11 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    // Don't handle click if the event is from the drag handle
+    if (isDragHandleEvent(e)) {
+      return;
+    }
+    
     // Only trigger onClick if it wasn't a long press
     if (!isLongPress.current && onClick) {
       onClick(note);
@@ -115,6 +143,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
   return (
     <>
       <Card 
+        ref={cardRef}
         className="p-4 hover-elevate transition-all duration-150 group"
         data-testid={`card-note-${note.id}`}
         onMouseDown={handleLongPressStart}
@@ -122,6 +151,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, categories =
         onMouseLeave={handleLongPressEnd}
         onTouchStart={handleLongPressStart}
         onTouchEnd={handleLongPressEnd}
+        onTouchCancel={handleLongPressEnd}
         onClick={handleClick}
       >
         <div className="flex items-start gap-3">

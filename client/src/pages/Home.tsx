@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import CategorySidebar, { Category } from "@/components/CategorySidebar";
@@ -885,7 +885,27 @@ export default function Home() {
   const pullStartY = useRef(0);
   const pullCurrentY = useRef(0);
   const isDragging = useRef(false);
+  const pullDistanceRef = useRef(0);
+  const isPullingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+  const rafId = useRef<number | null>(null);
   const PULL_THRESHOLD = 80; // Distance in pixels to trigger refresh
+
+  // Sync refs with state for event handlers
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
+
+  // Update state from refs using requestAnimationFrame for smooth updates
+  const updatePullState = useCallback(() => {
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+    }
+    rafId.current = requestAnimationFrame(() => {
+      setPullDistance(pullDistanceRef.current);
+      setIsPulling(isPullingRef.current);
+    });
+  }, []);
 
   // Pull-to-refresh: detect pull gesture from top
   useEffect(() => {
@@ -894,18 +914,23 @@ export default function Home() {
 
     const handleTouchStart = (e: TouchEvent) => {
       // Only start pull if at the top of the scroll container
-      if (container.scrollTop === 0) {
+      if (container.scrollTop === 0 && !isRefreshingRef.current) {
         pullStartY.current = e.touches[0].clientY;
         isDragging.current = true;
-        setIsPulling(true);
+        isPullingRef.current = true;
+        pullDistanceRef.current = 0;
+        updatePullState();
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging.current || container.scrollTop > 0) {
-        isDragging.current = false;
-        setIsPulling(false);
-        setPullDistance(0);
+      if (!isDragging.current || container.scrollTop > 0 || isRefreshingRef.current) {
+        if (isDragging.current) {
+          isDragging.current = false;
+          isPullingRef.current = false;
+          pullDistanceRef.current = 0;
+          updatePullState();
+        }
         return;
       }
 
@@ -914,7 +939,9 @@ export default function Home() {
       
       // Only allow pulling down (positive distance)
       if (distance > 0) {
-        setPullDistance(distance);
+        pullDistanceRef.current = distance;
+        isPullingRef.current = true;
+        updatePullState();
         // Prevent default scrolling when pulling
         if (distance > 10) {
           e.preventDefault();
@@ -925,7 +952,14 @@ export default function Home() {
     const handleTouchEnd = () => {
       if (!isDragging.current) return;
 
-      if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      const currentDistance = pullDistanceRef.current;
+      const shouldRefresh = currentDistance >= PULL_THRESHOLD && !isRefreshingRef.current;
+      
+      isDragging.current = false;
+      isPullingRef.current = false;
+      pullDistanceRef.current = 0;
+
+      if (shouldRefresh) {
         setIsRefreshing(true);
         // Refresh all queries
         Promise.all([
@@ -941,28 +975,29 @@ export default function Home() {
           }, 300);
         });
       } else {
-        // Snap back if not enough pull
-        setPullDistance(0);
-        setIsPulling(false);
+        updatePullState();
       }
-      
-      isDragging.current = false;
     };
 
     // Mouse events for desktop
     const handleMouseDown = (e: MouseEvent) => {
-      if (container.scrollTop === 0 && e.button === 0) {
+      if (container.scrollTop === 0 && e.button === 0 && !isRefreshingRef.current) {
         pullStartY.current = e.clientY;
         isDragging.current = true;
-        setIsPulling(true);
+        isPullingRef.current = true;
+        pullDistanceRef.current = 0;
+        updatePullState();
       }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current || container.scrollTop > 0) {
-        isDragging.current = false;
-        setIsPulling(false);
-        setPullDistance(0);
+      if (!isDragging.current || container.scrollTop > 0 || isRefreshingRef.current) {
+        if (isDragging.current) {
+          isDragging.current = false;
+          isPullingRef.current = false;
+          pullDistanceRef.current = 0;
+          updatePullState();
+        }
         return;
       }
 
@@ -970,7 +1005,9 @@ export default function Home() {
       const distance = Math.max(0, pullCurrentY.current - pullStartY.current);
       
       if (distance > 0) {
-        setPullDistance(distance);
+        pullDistanceRef.current = distance;
+        isPullingRef.current = true;
+        updatePullState();
         if (distance > 10) {
           e.preventDefault();
         }
@@ -980,7 +1017,14 @@ export default function Home() {
     const handleMouseUp = () => {
       if (!isDragging.current) return;
 
-      if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      const currentDistance = pullDistanceRef.current;
+      const shouldRefresh = currentDistance >= PULL_THRESHOLD && !isRefreshingRef.current;
+      
+      isDragging.current = false;
+      isPullingRef.current = false;
+      pullDistanceRef.current = 0;
+
+      if (shouldRefresh) {
         setIsRefreshing(true);
         Promise.all([
           queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }),
@@ -994,18 +1038,15 @@ export default function Home() {
           }, 300);
         });
       } else {
-        setPullDistance(0);
-        setIsPulling(false);
+        updatePullState();
       }
-      
-      isDragging.current = false;
     };
 
-    // Touch events
-    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    // Touch events - use passive for better scroll performance
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
-    container.addEventListener("touchend", handleTouchEnd);
-    container.addEventListener("touchcancel", handleTouchEnd);
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     // Mouse events
     container.addEventListener("mousedown", handleMouseDown);
@@ -1013,6 +1054,9 @@ export default function Home() {
     document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+      }
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
@@ -1021,7 +1065,7 @@ export default function Home() {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [pullDistance, isRefreshing]);
+  }, [updatePullState]); // Only depend on updatePullState which is memoized
 
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
@@ -1155,6 +1199,10 @@ export default function Home() {
                             ))}
                           </div>
                         </SortableContext>
+                      )}
+                      
+                      {filteredTasks.length > 0 && filteredNotes.length > 0 && (
+                        <div className="border-t border-border my-4" />
                       )}
                       
                       {filteredNotes.length > 0 && (
