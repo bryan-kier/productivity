@@ -23,18 +23,16 @@ function Router() {
     );
   }
 
-  if (!user && location !== "/") {
+  // If no user, always show login
+  if (!user) {
     return <Login />;
   }
 
+  // User is authenticated, show routes using component prop to prevent premature evaluation
   return (
     <Switch>
-      <Route path="/settings">
-        {user ? <Settings /> : <Login />}
-      </Route>
-      <Route path="/">
-        {user ? <Home /> : <Login />}
-      </Route>
+      <Route path="/settings" component={Settings} />
+      <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>
   );

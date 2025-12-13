@@ -6,15 +6,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import CategorySidebar from "@/components/CategorySidebar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const handleSignOut = async () => {
     try {
       await signOut();
+      // Explicitly navigate to login page
+      setLocation("/");
       toast({
         title: "Signed out",
         description: "You have been successfully signed out.",

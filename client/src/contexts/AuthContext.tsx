@@ -30,13 +30,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Proactively refresh session if it's about to expire
+      // This ensures the session stays valid for the full duration
+      if (session && event === 'TOKEN_REFRESHED') {
+        // Session was refreshed, update state
+        const { data: { session: refreshedSession } } = await supabase.auth.getSession();
+        if (refreshedSession) {
+          setSession(refreshedSession);
+          setUser(refreshedSession.user);
+        }
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // Set up periodic session refresh to ensure tokens stay valid
+    // Check every 5 minutes and refresh if needed
+    const refreshInterval = setInterval(async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+          // Check if token expires soon (within 5 minutes)
+          // expires_at is in seconds since epoch
+          const expiresAt = currentSession.expires_at;
+          if (expiresAt) {
+            const now = Math.floor(Date.now() / 1000);
+            const expiresIn = expiresAt - now;
+            // If token expires in less than 5 minutes, refresh it proactively
+            if (expiresIn < 300 && expiresIn > 0) {
+              const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession(currentSession);
+              if (refreshedSession && !error) {
+                setSession(refreshedSession);
+                setUser(refreshedSession.user);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Silently handle refresh errors - autoRefreshToken will handle it
+        console.debug('Session refresh check failed:', error);
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -76,7 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear all Supabase session data (tokens, refresh tokens, etc.)
     await supabase.auth.signOut();
+    // Clear React Query cache to remove any cached data
+    const { queryClient } = await import("@/lib/queryClient");
+    queryClient.clear();
   };
 
   const value = {
