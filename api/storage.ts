@@ -1,19 +1,13 @@
 import { 
-  users, type User, type InsertUser,
   categories, type Category, type InsertCategory,
   tasks, type Task, type InsertTask,
   subtasks, type Subtask, type InsertSubtask,
   notes, type Note, type InsertNote,
 } from "../shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, lt, asc } from "drizzle-orm";
+import { eq, and, lt, asc, inArray } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
   // Categories
   getCategories(): Promise<Category[]>;
   getCategory(id: string): Promise<Category | undefined>;
@@ -48,22 +42,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
-
   // Categories
   async getCategories(): Promise<Category[]> {
     return db.select().from(categories);
@@ -136,28 +114,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async resetDailyTasks(): Promise<void> {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0);
+    // Get all daily task IDs (regardless of completion status)
+    const dailyTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.refreshType, "daily"));
+    const dailyTaskIds = dailyTasks.map(t => t.id);
     
-    await db.update(tasks)
-      .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
-      .where(
-        and(
-          eq(tasks.refreshType, "daily"),
-          eq(tasks.completed, true)
-        )
-      );
+    if (dailyTaskIds.length > 0) {
+      // Reset all daily tasks (regardless of completion status)
+      await db.update(tasks)
+        .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
+        .where(eq(tasks.refreshType, "daily"));
+      
+      // Reset all subtasks for these daily tasks
+      await db.update(subtasks)
+        .set({ completed: false, completedAt: null })
+        .where(inArray(subtasks.taskId, dailyTaskIds));
+    }
   }
 
   async resetWeeklyTasks(): Promise<void> {
-    await db.update(tasks)
-      .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
-      .where(
-        and(
-          eq(tasks.refreshType, "weekly"),
-          eq(tasks.completed, true)
-        )
-      );
+    // Get all weekly task IDs (regardless of completion status)
+    const weeklyTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.refreshType, "weekly"));
+    const weeklyTaskIds = weeklyTasks.map(t => t.id);
+    
+    if (weeklyTaskIds.length > 0) {
+      // Reset all weekly tasks (regardless of completion status)
+      await db.update(tasks)
+        .set({ completed: false, completedAt: null, lastRefreshed: new Date() })
+        .where(eq(tasks.refreshType, "weekly"));
+      
+      // Reset all subtasks for these weekly tasks
+      await db.update(subtasks)
+        .set({ completed: false, completedAt: null })
+        .where(inArray(subtasks.taskId, weeklyTaskIds));
+    }
   }
 
   async deleteOldCompletedTasks(): Promise<void> {

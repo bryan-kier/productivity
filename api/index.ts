@@ -77,7 +77,7 @@ export default async function handler(
         }
       });
     });
-  } catch {
+  } catch (error) {
     res.status(500).json({ 
       error: "Internal server error",
       message: error instanceof Error ? error.message : String(error)

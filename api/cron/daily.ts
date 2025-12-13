@@ -6,9 +6,17 @@ export default async function handler(
   res: VercelResponse,
 ) {
   // Verify this is a cron request from Vercel
-  // Vercel Cron sends a special header, but for security, you can also check CRON_SECRET
+  // Vercel Cron sends a special header 'x-vercel-cron'
+  const isVercelCron = req.headers['x-vercel-cron'] === '1';
   const authHeader = req.headers.authorization;
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  
+  // If CRON_SECRET is set, require it; otherwise, require Vercel header
+  if (process.env.CRON_SECRET) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  } else if (!isVercelCron) {
+    // If no CRON_SECRET is set, only allow requests from Vercel Cron
     return res.status(401).json({ error: "Unauthorized" });
   }
 
