@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { supabaseAdmin } from '../lib/supabase.js';
 
 // Extend Express Request to include user
 declare global {
@@ -12,17 +12,6 @@ declare global {
     }
   }
 }
-
-// Get Supabase URL from environment
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-if (!supabaseUrl) {
-  throw new Error('Missing VITE_SUPABASE_URL environment variable');
-}
-
-// Create JWKS client (caches keys automatically)
-const JWKS = createRemoteJWKSet(
-  new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`)
-);
 
 export async function authenticateUser(
   req: Request,
@@ -39,21 +28,18 @@ export async function authenticateUser(
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    // Verify the JWT token locally (no network call)
+    // Verify the JWT token using Supabase's built-in verification
     try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `${supabaseUrl}/auth/v1`,
-      });
-
-      // Check if token is expired
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) {
-        res.status(401).json({ error: 'Unauthorized: Token expired' });
+      // Use Supabase's getUser method which handles all token verification automatically
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      
+      if (error || !user) {
+        res.status(401).json({ error: 'Unauthorized: Invalid token' });
         return;
       }
 
-      // Extract user info from JWT payload
-      const userId = payload.sub;
+      // Extract user info
+      const userId = user.id;
       if (!userId || typeof userId !== 'string') {
         res.status(401).json({ error: 'Unauthorized: Invalid token payload' });
         return;
@@ -62,7 +48,7 @@ export async function authenticateUser(
       // Attach user to request object
       req.user = {
         id: userId,
-        email: payload.email as string | undefined,
+        email: user.email,
       };
 
       next();
