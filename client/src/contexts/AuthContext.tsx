@@ -120,6 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     // Clear all Supabase session data (tokens, refresh tokens, etc.)
     await supabase.auth.signOut();
+    // Explicitly clear user state (onAuthStateChange should handle this, but be explicit)
+    setSession(null);
+    setUser(null);
     // Clear React Query cache to remove any cached data
     const { queryClient } = await import("@/lib/queryClient");
     queryClient.clear();

@@ -20,26 +20,42 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
-
-      if (error) {
-        toast({
-          title: "Authentication failed",
-          description: error.message,
-          variant: "destructive",
-        });
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) {
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Account created!",
+            description: "Please check your email to confirm your account, then sign in.",
+          });
+          // Switch to sign in mode after successful sign up
+          setIsSignUp(false);
+        }
       } else {
-        toast({
-          title: isSignUp ? "Account created!" : "Signed in successfully",
-          description: isSignUp ? "You can now sign in." : "Welcome back!",
-        });
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: "Sign in failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Signed in successfully",
+            description: "Welcome back!",
+          });
+          // The Router in App.tsx will automatically redirect to Home when user is set
+        }
       }
     } catch (err) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: err instanceof Error ? err.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -163,6 +179,7 @@ export default function Login() {
     </div>
   );
 }
+
 
 
 

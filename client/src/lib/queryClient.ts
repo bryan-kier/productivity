@@ -31,20 +31,56 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     // Get auth token from Supabase session
     const { supabase } = await import("./supabase");
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Failed to get session:', sessionError);
+      throw new Error('Failed to get authentication session');
+    }
+
     const token = session?.access_token;
+    
+    if (!token) {
+      console.warn('No access token available for request:', queryKey);
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
+      throw new Error('No authentication token available');
+    }
 
     const headers: Record<string, string> = {
-      ...(token && { Authorization: `Bearer ${token}` }),
+      Authorization: `Bearer ${token}`,
     };
 
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const res = await fetch(url, {
       credentials: "include",
       headers,
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      console.error('Unauthorized request:', url, 'Token:', token.substring(0, 20) + '...');
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
+      // Try to refresh the session
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshedSession) {
+        throw new Error('Authentication failed. Please sign in again.');
+      }
+      // Retry with new token
+      const newToken = refreshedSession.access_token;
+      const retryRes = await fetch(url, {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+        },
+      });
+      if (retryRes.status === 401) {
+        throw new Error('Authentication failed. Please sign in again.');
+      }
+      await throwIfResNotOk(retryRes);
+      return await retryRes.json();
     }
 
     await throwIfResNotOk(res);
@@ -60,6 +96,8 @@ export const queryClient = new QueryClient({
       refetchOnMount: false,
       staleTime: Infinity,
       retry: false,
+      // Queries will be enabled/disabled based on authentication status
+      enabled: true, // Will be overridden by individual queries if needed
     },
     mutations: {
       retry: false,
