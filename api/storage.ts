@@ -1,5 +1,4 @@
 import { 
-  users, type User, type InsertUser,
   categories, type Category, type InsertCategory,
   tasks, type Task, type InsertTask,
   subtasks, type Subtask, type InsertSubtask,
@@ -9,11 +8,6 @@ import { db } from "./db.js";
 import { eq, and, lt, asc } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
   // Categories
   getCategories(): Promise<Category[]>;
   getCategory(id: string): Promise<Category | undefined>;
@@ -48,22 +42,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
-
   // Categories
   async getCategories(): Promise<Category[]> {
     return db.select().from(categories);
