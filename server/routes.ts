@@ -136,6 +136,20 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tasks/reorder", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "taskIds must be an array" });
+      }
+      await storage.reorderTasks(taskIds, userId);
+      res.json({ message: "Tasks reordered successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder tasks", details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // === Subtasks ===
   app.get("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
@@ -252,6 +266,20 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
+  app.post("/api/notes/reorder", async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { noteIds } = req.body;
+      if (!Array.isArray(noteIds)) {
+        return res.status(400).json({ error: "noteIds must be an array" });
+      }
+      await storage.reorderNotes(noteIds, userId);
+      res.json({ message: "Notes reordered successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder notes", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

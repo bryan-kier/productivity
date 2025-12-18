@@ -74,6 +74,14 @@ export class DatabaseStorage implements IStorage {
   // Tasks
   async getTasks(userId: string): Promise<(Task & { categoryName?: string; subtasks: Subtask[] })[]> {
     const allTasks = await db.select().from(tasks).where(eq(tasks.userId, userId)).orderBy(asc(tasks.order), asc(tasks.id));
+    // Sort to put daily tasks first, then by order
+    allTasks.sort((a, b) => {
+      const aIsDaily = a.refreshType === "daily";
+      const bIsDaily = b.refreshType === "daily";
+      if (aIsDaily && !bIsDaily) return -1;
+      if (!aIsDaily && bIsDaily) return 1;
+      return (a.order ?? 0) - (b.order ?? 0);
+    });
     const taskIds = allTasks.map(t => t.id);
     const allSubtasks = taskIds.length > 0 ? await db.select().from(subtasks).where(inArray(subtasks.taskId, taskIds)) : [];
     const allCategories = await db.select().from(categories).where(eq(categories.userId, userId));
