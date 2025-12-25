@@ -19,8 +19,11 @@ export default async function handler(
     // Delete tasks that have been completed for more than a week
     await storage.deleteOldCompletedTasks();
     
+    // Delete subtasks that have been completed for more than a week
+    await storage.deleteOldCompletedSubtasks();
+    
     res.json({ 
-      message: "Weekly tasks refreshed and old completed tasks cleaned up",
+      message: "Weekly tasks refreshed and old completed tasks/subtasks cleaned up",
       timestamp: new Date().toISOString()
     });
   } catch (error) {

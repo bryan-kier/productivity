@@ -1195,6 +1195,7 @@ export default function Home() {
                                 onDelete={handleDeleteTask}
                                 onEditSubtask={handleEditSubtask}
                                 onDeleteSubtask={handleDeleteSubtask}
+                                showCompletedSubtasks={selectedView === "completed"}
                               />
                             ))}
                           </div>
@@ -1273,6 +1274,7 @@ export default function Home() {
                                     onDelete={handleDeleteTask}
                                     onEditSubtask={handleEditSubtask}
                                     onDeleteSubtask={handleDeleteSubtask}
+                                    showCompletedSubtasks={selectedView === "completed"}
                                   />
                                 ))}
                               </div>

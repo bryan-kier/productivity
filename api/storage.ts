@@ -31,6 +31,7 @@ export interface IStorage {
   createSubtask(subtask: InsertSubtask): Promise<Subtask>;
   updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>): Promise<Subtask | undefined>;
   deleteSubtask(id: string): Promise<void>;
+  deleteOldCompletedSubtasks(): Promise<void>;
   
   // Notes
   getNotes(): Promise<(Note & { categoryName?: string })[]>;
@@ -169,6 +170,20 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(tasks.completed, true),
           lt(tasks.completedAt, oneWeekAgo)
+        )
+      );
+  }
+
+  async deleteOldCompletedSubtasks(): Promise<void> {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    // Delete all subtasks that are completed and older than a week
+    await db.delete(subtasks)
+      .where(
+        and(
+          eq(subtasks.completed, true),
+          lt(subtasks.completedAt, oneWeekAgo)
         )
       );
   }

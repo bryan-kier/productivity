@@ -42,14 +42,23 @@ interface TaskCardProps {
   onEditSubtask?: (subtask: Subtask) => void;
   onDeleteSubtask?: (id: string) => void;
   dragHandle?: React.ReactNode;
+  showCompletedSubtasks?: boolean;
 }
 
-export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask, onEdit, onDelete, onEditSubtask, onDeleteSubtask, dragHandle }: TaskCardProps) {
+export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask, onEdit, onDelete, onEditSubtask, onDeleteSubtask, dragHandle, showCompletedSubtasks = false }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.subtasks.length > 0);
 
   const taskDeadline = task.deadline ? (typeof task.deadline === 'string' ? new Date(task.deadline) : task.deadline) : null;
   const isOverdue = taskDeadline && !task.completed && isPast(taskDeadline) && !isToday(taskDeadline);
   const isDueToday = taskDeadline && !task.completed && isToday(taskDeadline);
+
+  // Filter subtasks: hide completed ones unless showCompletedSubtasks is true
+  const visibleSubtasks = showCompletedSubtasks 
+    ? task.subtasks 
+    : task.subtasks.filter(subtask => !subtask.completed);
+  
+  // Update expanded state if all subtasks are filtered out
+  const hasVisibleSubtasks = visibleSubtasks.length > 0;
 
   return (
     <Card 
@@ -66,7 +75,7 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
             className="data-[state=checked]:bg-success data-[state=checked]:border-success flex-shrink-0"
             data-testid={`checkbox-task-${task.id}`}
           />
-          {task.subtasks.length > 0 && (
+          {hasVisibleSubtasks && (
             <Button
               variant="ghost"
               size="sm"
@@ -78,7 +87,7 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
               data-testid={`button-expand-subtasks-${task.id}`}
             >
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <span className="text-xs ml-1">{task.subtasks.length}</span>
+              <span className="text-xs ml-1">{visibleSubtasks.length}</span>
             </Button>
           )}
           <span 
@@ -180,9 +189,9 @@ export default function TaskCard({ task, onToggle, onToggleSubtask, onAddSubtask
         )}
         
         {/* Subtasks section */}
-        {task.subtasks.length > 0 && expanded && (
+        {hasVisibleSubtasks && expanded && (
           <div className="mt-2 space-y-2 w-full">
-                {task.subtasks.map((subtask) => {
+                {visibleSubtasks.map((subtask) => {
                   const subtaskDeadline = subtask.deadline ? (typeof subtask.deadline === 'string' ? new Date(subtask.deadline) : subtask.deadline) : null;
                   const isSubtaskOverdue = subtaskDeadline && !subtask.completed && isPast(subtaskDeadline) && !isToday(subtaskDeadline);
                   const isSubtaskDueToday = subtaskDeadline && !subtask.completed && isToday(subtaskDeadline);

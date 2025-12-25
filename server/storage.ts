@@ -32,6 +32,7 @@ export interface IStorage {
   createSubtask(subtask: InsertSubtask, userId: string): Promise<Subtask>;
   updateSubtask(id: string, updates: Partial<Pick<Subtask, 'title' | 'completed' | 'deadline'>>, userId: string): Promise<Subtask | undefined>;
   deleteSubtask(id: string, userId: string): Promise<void>;
+  deleteOldCompletedSubtasks(userId: string): Promise<void>;
   
   // Notes
   getNotes(userId: string): Promise<(Note & { categoryName?: string })[]>;
@@ -178,6 +179,27 @@ export class DatabaseStorage implements IStorage {
           eq(tasks.userId, userId)
         )
       );
+  }
+
+  async deleteOldCompletedSubtasks(userId: string): Promise<void> {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    // Get all task IDs for this user
+    const userTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.userId, userId));
+    const userTaskIds = userTasks.map(t => t.id);
+    
+    if (userTaskIds.length > 0) {
+      // Delete subtasks that are completed and older than a week, belonging to this user's tasks
+      await db.delete(subtasks)
+        .where(
+          and(
+            inArray(subtasks.taskId, userTaskIds),
+            eq(subtasks.completed, true),
+            lt(subtasks.completedAt, oneWeekAgo)
+          )
+        );
+    }
   }
 
   async reorderTasks(taskIds: string[], userId: string): Promise<void> {
